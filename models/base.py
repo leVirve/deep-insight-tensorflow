@@ -18,9 +18,16 @@ class BaseNet:
     def build_model(self):
         raise Exception('Not implemented')
 
+    def get_weight_name(self, filename):
+        return filename or self.WEIGHTS_FOLDER_FORMAT.format(self.NAME)
+
+    def load(self, filename=None):
+        weights_name = self.get_weight_name(filename)
+        return self.model.load_weights(weights_name)
+
     def save(self, filename=None):
-        model_name = filename or self.WEIGHTS_FOLDER_FORMAT.format(self.NAME)
-        dir_path = os.path.dirname(model_name)
+        weights_name = self.get_weight_name(filename)
+        dir_path = os.path.dirname(weights_name)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
-        return self.save_weights(model_name)
+        return self.model.save_weights(weights_name)
