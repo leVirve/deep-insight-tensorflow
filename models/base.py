@@ -9,19 +9,11 @@ class BaseNet:
     def __init__(self, image_shape=None, train=False, **kwargs):
         self.input_shape = self._calc_input_shape(image_shape)
         self.model = self.build_model(train)
-        self._register_methods()
 
     def _calc_input_shape(self, input_shape):
         from keras import backend as K
         dim_orderings = {'th': (1, *input_shape), 'tf': (*input_shape, 1)}
         return dim_orderings[K.image_dim_ordering()]
-
-    def _register_methods(self):
-        self.fit = self.model.fit
-        self.evaluate = self.model.evaluate
-        self.predict = self.model.predict
-        self.load_weights = self.model.load_weights
-        self.save_weights = self.model.save_weights
 
     def build_model(self):
         raise Exception('Not implemented')
