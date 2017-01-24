@@ -19,7 +19,6 @@ class CNet(BaseNet):
             Dropout(0.5),
             Dense(10, activation='softmax'),
         ]
-
         model = Sequential(layers=layers, name=self.NAME)
 
         if train:
