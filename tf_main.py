@@ -65,26 +65,25 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 # g = tf.Graph()
 
 init = tf.global_variables_initializer()
-training_iters = 200000
+epochs = 20
 batch_size = 128
+total_batch = mnist.train.num_examples // batch_size
 
 with tf.Session() as sess:
     sess.run(init)
-    step = 1
-    while step * batch_size < training_iters:
-        batch_x, batch_y = mnist.train.next_batch(batch_size)
 
-        sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
-        if step % 10 == 0:
-            loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
-                                                              y: batch_y})
-            print("Iter " + str(step*batch_size) + ", Minibatch Loss= " + \
-                  "{:.6f}".format(loss) + ", Training Accuracy= " + \
-                  "{:.5f}".format(acc))
-        step += 1
+    for epoch in range(epochs):
+        avg_cost = 0.
+        for i in range(total_batch):
+            batch_x, batch_y = mnist.train.next_batch(batch_size)
+            _, c = sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y})
+            avg_cost += c / total_batch
+
+        if epoch % 2 == 0:
+            print('Epoch {:04d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
+
     print("Optimization Finished!")
 
-    # Calculate accuracy for 256 mnist test images
     print("Testing Accuracy:", \
         sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
                                       y: mnist.test.labels[:256]}))
