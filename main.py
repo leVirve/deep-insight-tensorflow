@@ -11,8 +11,10 @@ def main(args):
     train = (train_set.x, train_set.y)
     test = (test_set.x, test_set.y)
 
-    cnet = CNet(train=True, image_shape=mnist.image_size)
-    model = cnet.model
+    import tensorflow as tf
+    with tf.device('/gpu:0'):
+        cnet = CNet(train=True, image_shape=mnist.image_size)
+        model = cnet.model
 
     if args.mode == 'train':
 
