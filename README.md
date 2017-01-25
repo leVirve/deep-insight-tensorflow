@@ -14,17 +14,17 @@ $ pip install -r requirements.txt
 
 Trainning on specific devices (`with tf.device` statement seems not working currently)
 ```bash
-CUDA_VISIBLE_DEVICES=1 python main.py train
+$ CUDA_VISIBLE_DEVICES=1 python main.py train
 ```
 
 ## Evaluate
 
 ```bash
-CUDA_VISIBLE_DEVICES=1 python main.py eval
+$ CUDA_VISIBLE_DEVICES=1 python main.py eval
 ```
 
 ## Predict
 
 ```bash
-CUDA_VISIBLE_DEVICES=1 python main.py predict
+$ CUDA_VISIBLE_DEVICES=1 python main.py predict
 ```
