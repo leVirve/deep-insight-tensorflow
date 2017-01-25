@@ -18,7 +18,7 @@ def main(args):
 
     if args.mode == 'train':
 
-        model.fit(*train, validation_data=test, nb_epoch=1, batch_size=512)
+        model.fit(*train, validation_data=test, nb_epoch=10, batch_size=512)
         cnet.save()
 
     elif args.mode == 'eval':
