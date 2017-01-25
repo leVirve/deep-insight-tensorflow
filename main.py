@@ -18,7 +18,11 @@ def main(args):
 
     if args.mode == 'train':
 
-        model.fit(*train, validation_data=test, nb_epoch=10, batch_size=512)
+        from keras.callbacks import TensorBoard
+        callbacks = [
+                TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False)
+            ]
+        model.fit(*train, validation_data=test, nb_epoch=10, batch_size=512, callbacks=callbacks)
         cnet.save()
 
     elif args.mode == 'eval':
