@@ -1,5 +1,7 @@
 import argparse
 
+import tensorflow as tf
+
 from datasets.mnist import MNist
 from models.network import CNet
 
@@ -11,10 +13,8 @@ def main(args):
     train = (train_set.x, train_set.y)
     test = (test_set.x, test_set.y)
 
-    import tensorflow as tf
-    with tf.device('/gpu:0'):
-        cnet = CNet(train=True, image_shape=mnist.image_size)
-        model = cnet.model
+    cnet = CNet(train=True, image_shape=mnist.image_size)
+    model = cnet.model
 
     if args.mode == 'train':
 
@@ -39,4 +39,5 @@ if __name__ == '__main__':
     p.add_argument('mode', action="store")
     args = p.parse_args()
 
-    main(args)
+    with tf.device('/gpu:0'):
+        main(args)
