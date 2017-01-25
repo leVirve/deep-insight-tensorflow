@@ -33,6 +33,9 @@ def main(args):
         cnet.load()
         print(cnet.model.predict(test[0]))
 
+    import gc
+    gc.collect()
+
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description='Play with models')
