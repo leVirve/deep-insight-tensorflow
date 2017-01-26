@@ -1,3 +1,4 @@
+import time
 import tensorflow as tf
 
 if False:
@@ -72,6 +73,7 @@ total_batch = mnist.train.num_examples // batch_size
 with tf.Session() as sess:
     sess.run(init)
 
+    s = time.time()
     for epoch in range(epochs):
         avg_cost = 0.
         for i in range(total_batch):
@@ -79,11 +81,12 @@ with tf.Session() as sess:
             _, c = sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y})
             avg_cost += c / total_batch
 
-        if epoch % 2 == 0:
-            print('Epoch {:04d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
+        print('Epoch {:04d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
 
     print("Optimization Finished!")
 
     print("Testing Accuracy:", \
         sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
                                       y: mnist.test.labels[:256]}))
+
+    print('Elasped time:', time.time() - s)
