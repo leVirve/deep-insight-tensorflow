@@ -1,5 +1,6 @@
 .vscode/
 __pycache__/
 logs/
+data/
 
-*.h5
+*.tfrecord
