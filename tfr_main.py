@@ -54,7 +54,7 @@ biases = {
 
 
 ''' Data part '''
-def read_and_decode(filename, is_train=None):
+def read_and_decode(filename):
     filename_queue = tf.train.string_input_producer([filename])
 
     reader = tf.TFRecordReader()
@@ -75,19 +75,19 @@ def read_and_decode(filename, is_train=None):
 
 
 epochs = 20
-batch_size = 128
+batch_size = 1024
 total_batch = mnist.train.num_examples // batch_size
 
-img, label = read_and_decode(filename='data/mnist-train.tfrecord', is_train=None)
+img, label = read_and_decode(filename='data/mnist-train.tfrecord')
 img_batch, label_batch = tf.train.shuffle_batch([img, label],
                                                 batch_size=batch_size,
-                                                capacity=5000,
-                                                min_after_dequeue=1000,
+                                                capacity=50000,
+                                                min_after_dequeue=10000,
                                                 num_threads=32)
-img, label = read_and_decode(filename='data/mnist-train.tfrecord', is_train=None)
+img, label = read_and_decode(filename='data/mnist-test.tfrecord')
 x_test_batch, y_test_batch = tf.train.batch([img, label],
                                             batch_size=batch_size,
-                                            capacity=500,
+                                            capacity=5000,
                                             num_threads=32)
 
 ''' Data part (End) '''
