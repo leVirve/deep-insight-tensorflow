@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+train_dir = './logs/train'
 
 
 def get_weights(kernel_shape):
@@ -73,7 +74,8 @@ with tf.name_scope('loss'):
     tf.summary.scalar('loss', loss)
 
 with tf.name_scope('train'):
-    train_op = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
+    step = tf.Variable(0, name='global_step', trainable=False)
+    train_op = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss, global_step=step)
 
 with tf.name_scope('accuracy'):
     correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
@@ -84,7 +86,8 @@ merged = tf.summary.merge_all()
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
-    train_writer = tf.summary.FileWriter('./logs/train', sess.graph)
+    train_writer = tf.summary.FileWriter(train_dir, sess.graph)
+    saver = tf.train.Saver()
 
     s = time.time()
     for epoch in range(epochs):
@@ -100,3 +103,5 @@ with tf.Session() as sess:
     acc = sess.run(accuracy, feed_dict={x: mnist.test.images,
                                         y: mnist.test.labels})
     print('Testing Accuracy: {:.2f}%'.format(acc * 100))
+
+    saver.save(sess, train_dir, global_step=step)
