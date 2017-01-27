@@ -54,8 +54,8 @@ biases = {
 
 
 ''' Data part '''
-def read_and_decode(filename):
-    filename_queue = tf.train.string_input_producer([filename])
+def read_and_decode(filename, epochs=1):
+    filename_queue = tf.train.string_input_producer([filename], num_epochs=epochs)
 
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
@@ -78,16 +78,18 @@ epochs = 20
 batch_size = 1024
 total_batch = mnist.train.num_examples // batch_size
 
-img, label = read_and_decode(filename='data/mnist-train.tfrecord')
+min_after_dequeue = 100
+capacity = min_after_dequeue + 3 * batch_size
+img, label = read_and_decode(filename='data/mnist-train.tfrecord', epochs=epochs)
 img_batch, label_batch = tf.train.shuffle_batch([img, label],
                                                 batch_size=batch_size,
-                                                capacity=50000,
-                                                min_after_dequeue=10000,
+                                                capacity=capacity,
+                                                min_after_dequeue=min_after_dequeue,
                                                 num_threads=32)
 img, label = read_and_decode(filename='data/mnist-test.tfrecord')
 x_test_batch, y_test_batch = tf.train.batch([img, label],
                                             batch_size=batch_size,
-                                            capacity=5000,
+                                            capacity=capacity,
                                             num_threads=32)
 
 ''' Data part (End) '''
@@ -102,9 +104,10 @@ test_pred = conv_net(x_test_batch, weights, biases)
 correct_pred = tf.equal(tf.cast(tf.argmax(test_pred, 1), tf.int32), y_test_batch)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
+init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
 with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
+    sess.run(init)
 
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -113,12 +116,23 @@ with tf.Session() as sess:
 
     try:
 
+        epoch = 0
+        while not coord.should_stop():
+            avg_cost = 0.
+            for i in range(total_batch):
+                _, c = sess.run([optimizer, cost])
+                avg_cost += c / total_batch
+            epoch += 1
+            print('Epoch {:04d}: cost = {:.9f}'.format(epoch, avg_cost))
+        '''
+        # if use string_input_producer without `num_epochs`
         for epoch in range(epochs):
             avg_cost = 0.
             for i in range(total_batch):
                 _, c = sess.run([optimizer, cost])
                 avg_cost += c / total_batch
             print('Epoch {:04d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
+        '''
 
     except tf.errors.OutOfRangeError:
         print('Done training -- epoch limit reached')
