@@ -8,7 +8,7 @@ class CNet(BaseNet):
 
     NAME = 'CNet'
 
-    def build_model(self, train=True):
+    def build_model(self):
         layers = [
             Convolution2D(32, 3, 3, activation='relu', input_shape=self.input_shape),
             Convolution2D(32, 3, 3, activation='relu'),
@@ -20,11 +20,11 @@ class CNet(BaseNet):
             Dense(10, activation='softmax'),
         ]
         model = Sequential(layers=layers, name=self.NAME)
+        return model
 
-        if train:
-            model.compile(
+    def compile(self):
+        self.model.compile(
                 optimizer='rmsprop',
                 loss='categorical_crossentropy',
                 metrics=['accuracy'])
-
-        return model
+        return self
