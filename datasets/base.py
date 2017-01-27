@@ -20,4 +20,3 @@ class DataSubset:
 
     def __repr__(self):
         return '<DataSubset: %s>' % self.name
-

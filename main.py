@@ -1,19 +1,19 @@
 import argparse
 
 import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
 
-from datasets.mnist import MNist
 from models.network import CNet
+
+mnist = input_data.read_data_sets("data/mnist-data", one_hot=True, reshape=False)
 
 
 def main(args):
 
-    mnist = MNist()
-    train_set, test_set = mnist.load()
-    train = (train_set.x, train_set.y)
-    test = (test_set.x, test_set.y)
+    train = (mnist.train.images, mnist.train.labels)
+    test = (mnist.test.images, mnist.test.labels)
 
-    cnet = CNet(train=True, image_shape=mnist.image_size)
+    cnet = CNet(train=True, image_shape=(28, 28))
     model = cnet.model
 
     if args.mode == 'train':
