@@ -1,3 +1,4 @@
+import time
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets('../data/mnist-data', one_hot=True)
@@ -30,7 +31,7 @@ def data_to_tfrecord(images, labels, filename):
     writer.close()
 
 
-def read_and_decode(filename, is_train=None):
+def read_and_decode(filename, is_train=False, preprocess=True):
     filename_queue = tf.train.string_input_producer([filename])
 
     reader = tf.TFRecordReader()
@@ -52,7 +53,7 @@ def read_and_decode(filename, is_train=None):
         img = tf.image.random_brightness(img, max_delta=63)
         img = tf.image.random_contrast(img, lower=0.2, upper=1.8)
         img = tf.image.per_image_standardization(img)
-    elif is_train is False:
+    elif preprocess:
         img = tf.image.resize_image_with_crop_or_pad(img, 24, 24)
         img = tf.image.per_image_standardization(img)
 
@@ -62,12 +63,12 @@ def read_and_decode(filename, is_train=None):
 data_to_tfrecord(mnist.train.images, mnist.train.labels, filename='../data/mnist-train.tfrecord')
 data_to_tfrecord(mnist.test.images, mnist.test.labels, filename='../data/mnist-test.tfrecord')
 
-img, label = read_and_decode(filename='mnist-train.tfrecord')
+img, label = read_and_decode(filename='../data/mnist-test.tfrecord', is_train=True)
 img_batch, label_batch = tf.train.shuffle_batch([img, label],
-                                                batch_size=4,
-                                                capacity=50000,
-                                                min_after_dequeue=10000,
-                                                num_threads=1)
+                                                batch_size=128,
+                                                capacity=500,
+                                                min_after_dequeue=100,
+                                                num_threads=4)
 print("img_batch   : %s" % img_batch._shape)
 print("label_batch : %s" % label_batch._shape)
 
@@ -76,42 +77,16 @@ with tf.Session() as sess:
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-    for i in range(3):  # number of mini-batch (step)
-        print("Step %d" % i)
-        val, l = sess.run([img_batch, label_batch])
-        # exit()
-        print(val.shape, l)
+    try:
+        for i in range(3):  # number of mini-batch (step)
+            s = time.time()
+            val, l = sess.run([img_batch, label_batch])
+            print("Step %d" % i, time.time() - s)
+            print(val.shape, l.shape)
+    except tf.errors.OutOfRangeError:
+        print('Done training -- epoch limit reached')
+    finally:
+        coord.request_stop()
 
-    coord.request_stop()
     coord.join(threads)
     sess.close()
-
-assert 0
-
-# Create the graph, etc.
-init_op = tf.global_variables_initializer()
-
-# Create a session for running operations in the Graph.
-sess = tf.Session()
-
-# Initialize the variables (like the epoch counter).
-sess.run(init_op)
-
-# Start input enqueue threads.
-coord = tf.train.Coordinator()
-threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-
-try:
-    while not coord.should_stop():
-        # Run training steps or whatever
-        sess.run(train_op)
-
-except tf.errors.OutOfRangeError:
-    print('Done training -- epoch limit reached')
-finally:
-    # When done, ask the threads to stop.
-    coord.request_stop()
-
-# Wait for threads to finish.
-coord.join(threads)
-sess.close()
