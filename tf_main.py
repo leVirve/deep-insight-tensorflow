@@ -1,13 +1,8 @@
 import time
 import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
 
-if False:
-    from datasets.mnist import MNist
-    mnist = MNist()
-    train_set, test_set = mnist.load()
-else:
-    from tensorflow.examples.tutorials.mnist import input_data
-    mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 
 def conv2d(x, W, b, strides=1):
@@ -62,12 +57,10 @@ optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
 correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-
-# g = tf.Graph()
-
 init = tf.global_variables_initializer()
+
 epochs = 20
-batch_size = 128
+batch_size = 1024
 total_batch = mnist.train.num_examples // batch_size
 
 with tf.Session() as sess:
@@ -80,13 +73,10 @@ with tf.Session() as sess:
             batch_x, batch_y = mnist.train.next_batch(batch_size)
             _, c = sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y})
             avg_cost += c / total_batch
-
-        print('Epoch {:04d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
-
-    print("Optimization Finished!")
-
-    print("Testing Accuracy:", \
-        sess.run(accuracy, feed_dict={x: mnist.test.images[:256],
-                                      y: mnist.test.labels[:256]}))
+        print('Epoch {:02d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
 
     print('Elasped time:', time.time() - s)
+
+    accuracy = sess.run(accuracy, feed_dict={x: mnist.test.images,
+                                             y: mnist.test.labels})
+    print('Testing Accuracy: {:.2f}%'.format(accuracy * 100))

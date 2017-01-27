@@ -18,8 +18,8 @@ print("Classification report for classifier %s:\n%s\n" %
 print("Confusion matrix:\n%s" % metrics.confusion_matrix(expected, predicted))
 
 images_and_predictions = list(zip(digits.images[n_samples // 2:], predicted))
-for index, (image, prediction) in enumerate(images_and_predictions[:4]):
-    plt.subplot(2, 4, index + 5)
+for index, (image, prediction) in enumerate(images_and_predictions[:4], 1):
+    plt.subplot(1, 4, index)
     plt.axis('off')
     plt.imshow(image, cmap=plt.cm.gray_r, interpolation='nearest')
     plt.title('Prediction: %i' % prediction)

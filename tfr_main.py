@@ -1,14 +1,8 @@
 import time
 import tensorflow as tf
-import numpy as np
+from tensorflow.examples.tutorials.mnist import input_data
 
-if False:
-    from datasets.mnist import MNist
-    mnist = MNist()
-    train_set, test_set = mnist.load()
-else:
-    from tensorflow.examples.tutorials.mnist import input_data
-    mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 
 def conv2d(x, W, b, strides=1):
@@ -54,7 +48,7 @@ biases = {
 
 
 ''' Data part '''
-def read_and_decode(filename, epochs=1):
+def read_and_decode(filename, epochs=None):
     filename_queue = tf.train.string_input_producer([filename], num_epochs=epochs)
 
     reader = tf.TFRecordReader()
@@ -112,18 +106,16 @@ with tf.Session() as sess:
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-    s = time.time()
-
     try:
-
         epoch = 0
+        s = time.time()
         while not coord.should_stop():
             avg_cost = 0.
             for i in range(total_batch):
                 _, c = sess.run([optimizer, cost])
                 avg_cost += c / total_batch
             epoch += 1
-            print('Epoch {:04d}: cost = {:.9f}'.format(epoch, avg_cost))
+            print('Epoch {:02d}: cost = {:.9f}'.format(epoch, avg_cost))
         '''
         # if use string_input_producer without `num_epochs`
         for epoch in range(epochs):
@@ -131,17 +123,15 @@ with tf.Session() as sess:
             for i in range(total_batch):
                 _, c = sess.run([optimizer, cost])
                 avg_cost += c / total_batch
-            print('Epoch {:04d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
+            print('Epoch {:02d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
         '''
-
     except tf.errors.OutOfRangeError:
-        print('Done training -- epoch limit reached')
+        print('Done training after {} epochs.'.format(epochs))
+        print('Elasped time:', time.time() - s)
     finally:
         coord.request_stop()
 
-    print('Elasped time:', time.time() - s)
-
-    print("Testing Accuracy:", sess.run(accuracy))
+    print('Testing Accuracy: {:.2f}%'.format(sess.run(accuracy) * 100))
 
     coord.join(threads)
     sess.close()
