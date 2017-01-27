@@ -59,22 +59,23 @@ def cnet(x):
 x = tf.placeholder(tf.float32, [None, 28 * 28])
 y = tf.placeholder(tf.float32, [None, 10])
 
-pred = cnet(x)
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
+with tf.name_scope('loss'):
+    pred = cnet(x)
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
 
-correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+with tf.name_scope('optimize'):
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
 
-init = tf.global_variables_initializer()
+with tf.name_scope('accuracy'):
+    correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-epochs = 20
-batch_size = 1024
+epochs, batch_size = 20, 1024
 total_batch = mnist.train.num_examples // batch_size
 
 with tf.Session() as sess:
-    sess.run(init)
+    sess.run(tf.global_variables_initializer())
 
     s = time.time()
     for epoch in range(epochs):
@@ -84,9 +85,8 @@ with tf.Session() as sess:
             _, c = sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y})
             avg_cost += c / total_batch
         print('Epoch {:02d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
-
     print('Elasped time:', time.time() - s)
 
-    accuracy = sess.run(accuracy, feed_dict={x: mnist.test.images,
-                                             y: mnist.test.labels})
-    print('Testing Accuracy: {:.2f}%'.format(accuracy * 100))
+    acc = sess.run(accuracy, feed_dict={x: mnist.test.images,
+                                        y: mnist.test.labels})
+    print('Testing Accuracy: {:.2f}%'.format(acc * 100))
