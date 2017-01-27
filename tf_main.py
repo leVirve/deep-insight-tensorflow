@@ -5,51 +5,61 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 
-def conv2d(x, W, b, strides=1):
-    x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
-    x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
+def get_weights(kernel_shape):
+    return tf.get_variable('weights', kernel_shape,
+                           initializer=tf.random_normal_initializer())
 
 
-def maxpool2d(x, k=2):
+def get_biases(bias_shape):
+    return tf.get_variable('biases', bias_shape,
+                           initializer=tf.constant_initializer(0.0))
+
+
+def define_scope(function):
+    def decorator(*args, **kwargs):
+        with tf.variable_scope(kwargs.get('name')):
+            return function(*args, **kwargs)
+    return decorator
+
+
+@define_scope
+def conv(x, kernel_shape, bias_shape, strides=1, name=None):
+    w, b = get_weights(kernel_shape), get_biases(bias_shape)
+    r = tf.nn.conv2d(x, w, strides=[1, strides, strides, 1], padding='SAME')
+    return tf.nn.relu(tf.nn.bias_add(r, b))
+
+
+@define_scope
+def pool(x, k=2, name=None):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 
-def conv_net(x, weights, biases):
+@define_scope
+def dense(x, kernel_shape, bias_shape, name=None):
+    w, b = get_weights(kernel_shape), get_biases(bias_shape)
+    return tf.add(tf.matmul(x, w), b)
+
+
+def cnet(x):
     x = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    conv1 = maxpool2d(conv1, k=2)
+    conv1 = conv(x, [5, 5, 1, 32], [32], name='conv1')
+    pool1 = pool(conv1, name='pool1')
+    conv2 = conv(pool1, [5, 5, 32, 64], [64], name='conv2')
+    pool2 = pool(conv2, name='pool2')
+    flat1 = tf.reshape(pool2, [-1, 7 * 7 * 64])
+    fc1 = dense(flat1, [7 * 7 * 64, 1024], [1024], name='fc1')
+    with tf.variable_scope('fc1'):
+        fc1 = tf.nn.dropout(tf.nn.relu(fc1), 0.75)
+    fc2 = dense(fc1, [1024, 10], [10], name='fc2')
 
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    conv2 = maxpool2d(conv2, k=2)
+    return fc2
 
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
-    fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
-    fc1 = tf.nn.dropout(fc1, 0.75)
-
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
-    return out
-
-weights = {
-    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-    'wd1': tf.Variable(tf.random_normal([7 * 7 * 64, 1024])),
-    'out': tf.Variable(tf.random_normal([1024, 10]))
-}
-
-biases = {
-    'bc1': tf.Variable(tf.random_normal([32])),
-    'bc2': tf.Variable(tf.random_normal([64])),
-    'bd1': tf.Variable(tf.random_normal([1024])),
-    'out': tf.Variable(tf.random_normal([10]))
-}
 
 x = tf.placeholder(tf.float32, [None, 28 * 28])
 y = tf.placeholder(tf.float32, [None, 10])
 
-pred = conv_net(x, weights, biases)
+pred = cnet(x)
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
 optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
