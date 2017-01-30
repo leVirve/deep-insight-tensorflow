@@ -13,6 +13,6 @@ clean:
 # Fast access temporarily
 
 tf:
-	CUDA_VISIBLE_DEVICES=1 python tf_main.py train
+	python tf_main.py train
 tfr:
 	CUDA_VISIBLE_DEVICES=1 python tfr_main.py train

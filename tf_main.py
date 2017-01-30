@@ -1,3 +1,9 @@
+''' Use only one gpu (device #1) '''
+import os
+gpu_dev = 1
+os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_dev)
+''''''
+
 import time
 import tensorflow as tf
 
@@ -10,16 +16,21 @@ train_dir = './logs/train'
 epochs, batch_size = 20, 1024
 dataset = MNist(batch_size=batch_size)
 
-with tf.name_scope('input'):
-    x = tf.placeholder(tf.float32, [None, 28 * 28])
-    y = tf.placeholder(tf.float32, [None, 10])
+with tf.device('/gpu:%d' % gpu_dev):
+    with tf.name_scope('input'):
+        x = tf.placeholder(tf.float32, [None, 28 * 28])
+        y = tf.placeholder(tf.float32, [None, 10])
 
-step = tf.Variable(0, name='global_step', trainable=False)
-net = TFCNN(x, y, step)
+    step = tf.Variable(0, name='global_step', trainable=False)
+    net = TFCNN(x, y, step)
 
-merged = tf.summary.merge_all()
+    merged = tf.summary.merge_all()
 
-with tf.Session() as sess:
+config = tf.ConfigProto()
+config.allow_soft_placement = True
+config.gpu_options.allow_growth = True
+
+with tf.Session(config=config) as sess:
     sess.run(tf.global_variables_initializer())
     train_writer = tf.summary.FileWriter(train_dir, sess.graph)
     saver = tf.train.Saver()
