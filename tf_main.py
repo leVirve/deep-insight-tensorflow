@@ -1,16 +1,10 @@
-''' Use only one gpu (device #1) '''
-import os
-gpu_dev = 1
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_dev)
-''''''
+from config import gpu_dev, config
 
 import time
 import tensorflow as tf
 
 from models.network import TFCNN
 from datasets import MNist
-
-tf.logging.set_verbosity(tf.logging.INFO)
 
 train_dir = './logs/train'
 epochs, batch_size = 20, 1024
@@ -23,10 +17,6 @@ with tf.device('/gpu:%d' % gpu_dev):
 
     net = TFCNN(x, y)
     merged = tf.summary.merge_all()
-
-config = tf.ConfigProto()
-config.allow_soft_placement = True
-config.gpu_options.allow_growth = True
 
 with tf.Session(config=config) as sess:
     sess.run(tf.global_variables_initializer())
