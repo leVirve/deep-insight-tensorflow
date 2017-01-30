@@ -8,10 +8,18 @@ from tensorflow.python.layers import layers
 from models.base import BaseNet
 
 
-def define_scope(f, *args, **kwargs):
-
+def lazy_property(f):
     attr = '_cached_' + f.__name__
+    @property
+    def decorator(self):
+        if not hasattr(self, attr):
+            setattr(self, attr, f(self))
+        return getattr(self, attr)
+    return decorator
 
+
+def property_scope(f, *args, **kwargs):
+    attr = '_cached_' + f.__name__
     @property
     @functools.wraps(f)
     def decorator(self):
@@ -42,7 +50,7 @@ class KerasCNN(BaseNet):
 
     def compile(self):
         self.model.compile(
-            optimizer='rmsprop',
+            optimizer='adam',
             loss='categorical_crossentropy',
             metrics=['accuracy'])
         return self
@@ -52,40 +60,42 @@ class TFCNN:
 
     NAME = 'TFCNN'
 
-    def __init__(self, images, labels, step=0):
+    def __init__(self, images, labels, step=0, is_train=True):
         self.images = images
         self.labels = labels
+        self.is_train = is_train
         self.step = tf.Variable(step, name='global_step', trainable=False)
-        self.logits = self.build_model()
+        self.build_graph()
+        self.summary = tf.summary.merge_all()
 
-        self.loss
+    def build_graph(self):
         self.optimize
         self.accuracy
 
-    def build_model(self, is_train=True):
-        # x = tf.reshape(self.images, shape=[-1, 28, 28, 1])
+    @lazy_property
+    def logits(self):
         conv1 = layers.conv2d(self.images, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
         pool1 = layers.max_pooling2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
         conv2 = layers.conv2d(pool1, 64, [5, 5], padding='same', activation=tf.nn.relu, name='conv2')
         pool2 = layers.max_pooling2d(conv2, pool_size=[2, 2], strides=2, name='pool2')
         flat1 = tf.reshape(pool2, [-1, 7 * 7 * 64], name='flatten')
         dense = layers.dense(flat1, units=1024, activation=tf.nn.relu, name='fc1')
-        dropout = layers.dropout(dense, rate=0.4, training=is_train, name='dropout')
+        dropout = layers.dropout(dense, rate=0.4, training=self.is_train, name='dropout')
         logits = layers.dense(dropout, units=10, name='fc2')
         return logits
 
-    @define_scope
+    @property_scope
     def loss(self):
         xentropy = tf.losses.softmax_cross_entropy(logits=self.logits, onehot_labels=self.labels)
         loss = tf.reduce_mean(xentropy, name='loss')
         tf.summary.scalar('loss', loss)
         return loss
 
-    @define_scope
+    @property_scope
     def optimize(self):
         return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=self.step)
 
-    @define_scope
+    @property_scope
     def accuracy(self):
         correct_pred = tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.labels, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
