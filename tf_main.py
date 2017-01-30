@@ -14,16 +14,14 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 train_dir = './logs/train'
 epochs, batch_size = 20, 1024
-dataset = MNist(batch_size=batch_size)
+dataset = MNist(batch_size=batch_size, reshape=False)
 
 with tf.device('/gpu:%d' % gpu_dev):
-    with tf.name_scope('input'):
-        x = tf.placeholder(tf.float32, [None, 28 * 28])
-        y = tf.placeholder(tf.float32, [None, 10])
+    with tf.name_scope('inputs'):
+        x = tf.placeholder(tf.float32, [None, *dataset.image_shape])
+        y = tf.placeholder(tf.float32, [None, dataset.classes])
 
-    step = tf.Variable(0, name='global_step', trainable=False)
-    net = TFCNN(x, y, step)
-
+    net = TFCNN(x, y)
     merged = tf.summary.merge_all()
 
 config = tf.ConfigProto()
@@ -49,4 +47,4 @@ with tf.Session(config=config) as sess:
     acc = sess.run(net.accuracy, feed_dict={x: dataset.test_set.images, y: dataset.test_set.labels})
     print('Testing Accuracy: {:.2f}%'.format(acc * 100))
 
-    saver.save(sess, train_dir, global_step=step)
+    saver.save(sess, train_dir, global_step=net.step)

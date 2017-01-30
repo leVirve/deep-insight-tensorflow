@@ -4,6 +4,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 class MNist:
 
     path = 'data/mnist-data'
+    image_shape = (28, 28, 1)
+    classes = 10
 
     def __init__(self, batch_size, *args, **kwargs):
         self.raw = input_data.read_data_sets(self.path, one_hot=True, *args, **kwargs)

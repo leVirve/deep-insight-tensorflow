@@ -52,18 +52,19 @@ class TFCNN:
 
     NAME = 'TFCNN'
 
-    def __init__(self, images, labels, step):
+    def __init__(self, images, labels, step=0):
         self.images = images
         self.labels = labels
-        self.step = step
+        self.step = tf.Variable(step, name='global_step', trainable=False)
         self.logits = self.build_model()
+
         self.loss
         self.optimize
         self.accuracy
 
     def build_model(self, is_train=True):
-        x = tf.reshape(self.images, shape=[-1, 28, 28, 1])
-        conv1 = layers.conv2d(x, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
+        # x = tf.reshape(self.images, shape=[-1, 28, 28, 1])
+        conv1 = layers.conv2d(self.images, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
         pool1 = layers.max_pooling2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
         conv2 = layers.conv2d(pool1, 64, [5, 5], padding='same', activation=tf.nn.relu, name='conv2')
         pool2 = layers.max_pooling2d(conv2, pool_size=[2, 2], strides=2, name='pool2')
