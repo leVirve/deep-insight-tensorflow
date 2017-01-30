@@ -2,7 +2,7 @@
 
 ## Requirements:
 - Python 3.5
-- `tensorflow` or `theano`
+- `tensorflow` >= 1.0.0rc
 - `keras`
 
 Can install through freezed requirements file:

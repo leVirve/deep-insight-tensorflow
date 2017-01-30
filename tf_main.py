@@ -2,64 +2,10 @@ import time
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
+from models.network import TFCNN
+
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 train_dir = './logs/train'
-
-
-def get_weights(kernel_shape):
-    return tf.get_variable('weights', kernel_shape,
-                           initializer=tf.truncated_normal_initializer(stddev=0.1))
-
-
-def get_biases(bias_shape):
-    return tf.get_variable('biases', bias_shape,
-                           initializer=tf.constant_initializer(0.0))
-
-
-def define_scope(function):
-    def decorator(*args, **kwargs):
-        with tf.variable_scope(kwargs.get('name')):
-            return function(*args, **kwargs)
-    return decorator
-
-
-@define_scope
-def conv(x, kernel_shape, bias_shape, strides=1, name=None):
-    w, b = get_weights(kernel_shape), get_biases(bias_shape)
-    r = tf.nn.conv2d(x, w, strides=[1, strides, strides, 1], padding='SAME')
-    return tf.nn.relu(tf.nn.bias_add(r, b))
-
-
-@define_scope
-def pool(x, k=2, name=None):
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
-
-
-@define_scope
-def dense(x, kernel_shape, bias_shape, activation=None, name=None):
-    w, b = get_weights(kernel_shape), get_biases(bias_shape)
-    y = tf.add(tf.matmul(x, w), b)
-    return activation(y) if callable(activation) else y
-
-
-@define_scope
-def dropout(x, rate, name=None):
-    return tf.nn.dropout(x, rate)
-
-
-def inference(x):
-    x = tf.reshape(x, shape=[-1, 28, 28, 1])
-    conv1 = conv(x, [5, 5, 1, 32], [32], name='conv1')
-    pool1 = pool(conv1, name='pool1')
-    conv2 = conv(pool1, [5, 5, 32, 64], [64], name='conv2')
-    pool2 = pool(conv2, name='pool2')
-    flat1 = tf.reshape(pool2, [-1, 7 * 7 * 64], name='flatten')
-    fc1 = dense(flat1, [7 * 7 * 64, 1024], [1024], activation=tf.nn.relu, name='fc1')
-    dp1 = dropout(fc1, 0.75, name='dropout')
-    fc2 = dense(dp1, [1024, 10], [10], name='fc2')
-    return fc2
-
-
 epochs, batch_size = 20, 1024
 total_batch = mnist.train.num_examples // batch_size
 
@@ -67,10 +13,10 @@ with tf.name_scope('input'):
     x = tf.placeholder(tf.float32, [None, 28 * 28])
     y = tf.placeholder(tf.float32, [None, 10])
 
-logits = inference(x)
+logits = TFCNN().build_model(x)
 
 with tf.name_scope('loss'):
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, y), name='loss')
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y), name='loss')
     tf.summary.scalar('loss', loss)
 
 with tf.name_scope('train'):
