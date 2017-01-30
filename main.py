@@ -3,7 +3,7 @@ import argparse
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
-from models.network import CNet
+from models.network import KerasCNN
 
 mnist = input_data.read_data_sets("data/mnist-data", one_hot=True, reshape=False)
 train_set = (mnist.train.images, mnist.train.labels)
@@ -19,7 +19,7 @@ def train(net):
         ]
     net.compile()
     net.model.fit(*train_set, validation_data=test_set,
-                   nb_epoch=10, batch_size=512, callbacks=callbacks)
+                   nb_epoch=20, batch_size=512, callbacks=callbacks)
     net.save()
 
 
@@ -47,7 +47,5 @@ if __name__ == '__main__':
     }.get(args.mode, evaluate)
 
     with tf.device('/gpu:0'):
-        cnet = CNet(image_shape=(28, 28))
-        func(cnet)
-
-        import gc; gc.collect()
+        net = KerasCNN(image_shape=(28, 28))
+        func(net)
