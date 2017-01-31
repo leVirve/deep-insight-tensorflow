@@ -19,23 +19,3 @@ class MNist:
     @property
     def test_set(self):
         return self.raw.test
-
-    @staticmethod
-    def read_and_decode(filename, epochs=None):
-        filename_queue = tf.train.string_input_producer([filename], num_epochs=epochs)
-
-        reader = tf.TFRecordReader()
-        _, serialized_example = reader.read(filename_queue)
-
-        features = tf.parse_single_example(
-            serialized_example,
-            features={
-                'label': tf.FixedLenFeature([], tf.int64),
-                'img_raw' : tf.FixedLenFeature([], tf.string),
-            })
-
-        img = tf.decode_raw(features['img_raw'], tf.float32)
-        img = tf.reshape(img, [28, 28, 1])
-        label = tf.cast(features['label'], tf.int32)
-
-        return img, label

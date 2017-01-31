@@ -32,6 +32,7 @@ train_dir = train['train_dir']
 tfrecord = train['tfrecord']
 min_after_dequeue = tfrecord['min_after_dequeue']
 num_threads = tfrecord['num_threads']
+preprocess_level = tfrecord['preprocess_level']
 capacity = min_after_dequeue + 3 * batch_size
 
 model = cfg['model']

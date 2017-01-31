@@ -3,7 +3,7 @@ from tools import config as cfg
 import tensorflow as tf
 
 from tools import cli
-from tools.tfrecord import train_tfrecord, test_tfrecord
+from tools.tfrecord import train_tfrecord, test_tfrecord, data_to_tfrecord
 from models.network import TFCNN
 from datasets import MNist
 
@@ -62,10 +62,16 @@ def evaluate():
     sess.close()
 
 
+def gen_tfrecord():
+    data_to_tfrecord(dataset.raw.train.images, dataset.raw.train.labels, filename='data/mnist-train.tfrecord')
+    data_to_tfrecord(dataset.raw.test.images, dataset.raw.test.labels, filename='data/mnist-test.tfrecord')
+
+
 if __name__ == '__main__':
     mode = cli.args.mode
     initial(mode == 'train')
     func = {
+        'gen': gen_tfrecord,
         'train': train,
         'eval': evaluate,
     }.get(mode, evaluate)

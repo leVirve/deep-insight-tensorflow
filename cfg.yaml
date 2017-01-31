@@ -8,6 +8,7 @@ train:
         min_after_dequeue: 100
         capacity: ~
         num_threads: 32
+        preprocess_level: 1
 
 model:
     model_dir: ./logs/models/
