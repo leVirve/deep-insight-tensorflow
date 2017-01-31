@@ -9,13 +9,15 @@ from datasets import MNist
 
 dataset = MNist(batch_size=cfg.batch_size, reshape=False)
 
-with tf.device(cfg.gpu_device):
-    with tf.name_scope('inputs'):
-        x = tf.placeholder(tf.float32, [None, *dataset.image_shape])
-        y = tf.placeholder(tf.float32, [None, dataset.classes])
-    net = TFCNN(x, y).build_graph()
 
-saver = tf.train.Saver()
+def initial(mode):
+    global x, y, net, saver
+    with tf.device(cfg.gpu_device):
+        with tf.name_scope('inputs'):
+            x = tf.placeholder(tf.float32, [None, *dataset.image_shape])
+            y = tf.placeholder(tf.float32, [None, dataset.classes])
+        net = TFCNN(x, y, is_train=mode).build_graph()
+    saver = tf.train.Saver()
 
 
 def train():
@@ -45,6 +47,8 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description='Play with models')
     p.add_argument('mode', action='store')
     args = p.parse_args()
+
+    initial(args.mode == 'train')
 
     func = {
         'train': train,
