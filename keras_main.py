@@ -1,38 +1,38 @@
+import config as cfg
+
 import argparse
 
-import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
-
 from models.network import KerasCNN
+from datasets import MNist
 
-mnist = input_data.read_data_sets("data/mnist-data", one_hot=True, reshape=False)
-train_set = (mnist.train.images, mnist.train.labels)
-test_set = (mnist.test.images, mnist.test.labels)
+dataset = MNist(batch_size=cfg.batch_size, reshape=False)
+train_set = (dataset.raw.train.images, dataset.raw.train.labels)
+test_set = (dataset.raw.test.images, dataset.raw.test.labels)
 
 
 def train(net):
     from keras.callbacks import TensorBoard
     callbacks = [
             TensorBoard(
-                log_dir='./logs',
+                log_dir=cfg.train_dir,
                 histogram_freq=2, write_graph=True, write_images=False)
         ]
     net.compile()
     net.model.fit(*train_set, validation_data=test_set,
-                   nb_epoch=20, batch_size=512, callbacks=callbacks)
+                   nb_epoch=cfg.epochs, batch_size=cfg.batch_size, callbacks=callbacks)
     net.save()
 
 
 def evaluate(net):
     net.load()
     net.compile()
-    _, accuracy = net.model.evaluate(*test_set, batch_size=512)
+    _, accuracy = net.model.evaluate(*test_set, batch_size=cfg.batch_size)
     print('== %s ==\nTest accuracy: %.2f%%' % (net.NAME, accuracy * 100))
 
 
 def predict(net):
     net.load()
-    print(net.model.predict(mnist.test.images))
+    print(net.model.predict(dataset.raw.test.images))
 
 
 if __name__ == '__main__':
@@ -46,6 +46,5 @@ if __name__ == '__main__':
         'test': predict
     }.get(args.mode, evaluate)
 
-    with tf.device('/gpu:0'):
-        net = KerasCNN(image_shape=(28, 28, 1))
-        func(net)
+    net = KerasCNN(image_shape=dataset.image_shape)
+    func(net)

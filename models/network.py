@@ -11,6 +11,7 @@ class KerasCNN:
 
     def __init__(self, image_shape=None):
         self.input_shape = image_shape
+        self.model = self.build_model()
 
     def build_model(self):
         layers = [
