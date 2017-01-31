@@ -1,6 +1,23 @@
 import os
 import yaml
 
+
+def create_parent_dir(fullpath):
+    dir_path = os.path.dirname(fullpath)
+    os.makedirs(dir_path, exist_ok=True)
+
+
+def setup_gpu_env(device_id):
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(device_id)
+
+
+def build_tf_config():
+    import tensorflow as tf
+    config = tf.ConfigProto()
+    config.allow_soft_placement = True
+    config.gpu_options.allow_growth = True
+    return config
+
 with open('cfg.yaml', 'r') as f:
     cfg = yaml.load(f)
 
@@ -12,11 +29,11 @@ epochs = train['epochs']
 batch_size = train['batch_size']
 train_dir = train['train_dir']
 
-os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_device_id)
+model = cfg['model']
+model_path = model['model_path']
+model_dir = model['model_dir']
 
-import tensorflow as tf
-config = tf.ConfigProto()
-config.allow_soft_placement = True
-config.gpu_options.allow_growth = True
+create_parent_dir(model_path)
+setup_gpu_env(gpu_device_id)
 
-tf.logging.set_verbosity(tf.logging.WARN)
+config = build_tf_config()

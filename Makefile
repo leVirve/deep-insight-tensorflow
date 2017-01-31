@@ -13,6 +13,9 @@ clean:
 # Fast access temporarily
 
 tf:
-	python tf_main.py train
+	-python tf_main.py train
 tfr:
-	python tfr_main.py train
+	-python tfr_main.py train
+
+tsbsub:
+	tensorboard --logdir=./logs/train/

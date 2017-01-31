@@ -1,5 +1,10 @@
 gpu_device_id: 1
+
 train:
     epochs: 20
     batch_size: 1024
     train_dir: ./logs/train
+
+model:
+    model_dir: ./logs/models/
+    model_path: ./logs/models/mnist

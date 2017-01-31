@@ -1,6 +1,7 @@
 import config as cfg
 
-import time
+import argparse
+
 import tensorflow as tf
 
 from models.network import TFCNN
@@ -14,12 +15,13 @@ with tf.device(cfg.gpu_device):
         y = tf.placeholder(tf.float32, [None, dataset.classes])
     net = TFCNN(x, y).build_graph()
 
-with tf.Session(config=cfg.config) as sess:
+saver = tf.train.Saver()
+
+
+def train():
     sess.run(tf.global_variables_initializer())
     train_writer = tf.summary.FileWriter(cfg.train_dir, sess.graph)
-    saver = tf.train.Saver()
 
-    s = time.time()
     for epoch in range(cfg.epochs):
         loss = 0.
         for i in range(dataset.num_train_batch):
@@ -27,10 +29,27 @@ with tf.Session(config=cfg.config) as sess:
             _, c, summary = sess.run(net.train_op, feed_dict={x: batch_x, y: batch_y})
             loss += c
         train_writer.add_summary(summary, epoch)
+        if epoch % 2 == 0:
+            saver.save(sess, cfg.model_path, global_step=net.step)
         print('Epoch {:02d}: loss = {:.9f}'.format(epoch + 1, loss / dataset.num_train_batch))
-    print('Elasped time:', time.time() - s)
 
+
+def evaluate():
+    model_path = tf.train.latest_checkpoint(cfg.model_dir)
+    saver.restore(sess, model_path)
     acc = sess.run(net.accuracy, feed_dict={x: dataset.test_set.images, y: dataset.test_set.labels})
     print('Testing Accuracy: {:.2f}%'.format(acc * 100))
 
-    saver.save(sess, cfg.train_dir, global_step=net.step)
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser(description='Play with models')
+    p.add_argument('mode', action='store')
+    args = p.parse_args()
+
+    func = {
+        'train': train,
+        'eval': evaluate,
+    }.get(args.mode, evaluate)
+
+    with tf.Session(config=cfg.config) as sess:
+        func()
