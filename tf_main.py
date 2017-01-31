@@ -1,9 +1,8 @@
 import config as cfg
 
-import argparse
-
 import tensorflow as tf
 
+import cli
 from models.network import TFCNN
 from datasets import MNist
 
@@ -44,16 +43,12 @@ def evaluate():
 
 
 if __name__ == '__main__':
-    p = argparse.ArgumentParser(description='Play with models')
-    p.add_argument('mode', action='store')
-    args = p.parse_args()
-
-    initial(args.mode == 'train')
-
+    mode = cli.args.mode
+    initial(mode == 'train')
     func = {
         'train': train,
         'eval': evaluate,
-    }.get(args.mode, evaluate)
+    }.get(mode, evaluate)
 
     with tf.Session(config=cfg.config) as sess:
         func()
