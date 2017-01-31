@@ -15,4 +15,4 @@ clean:
 tf:
 	python tf_main.py train
 tfr:
-	CUDA_VISIBLE_DEVICES=1 python tfr_main.py train
+	python tfr_main.py train

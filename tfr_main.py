@@ -1,107 +1,38 @@
+from config import gpu_dev, config
+
 import time
 import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
 
-mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+from models.network import TFCNN
+from datasets import MNist
 
+train_dir = './logs/train'
+epochs, batch_size = 20, 1024
+dataset = MNist(batch_size=batch_size, reshape=False)
 
-def conv2d(x, W, b, strides=1):
-    x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
-    x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
-
-
-def maxpool2d(x, k=2):
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
-
-
-def conv_net(x, weights, biases):
-    x = tf.reshape(x, shape=[-1, 28, 28, 1])
-
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    conv1 = maxpool2d(conv1, k=2)
-
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    conv2 = maxpool2d(conv2, k=2)
-
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
-    fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
-    fc1 = tf.nn.dropout(fc1, 0.75)
-
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
-    return out
-
-weights = {
-    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-    'wd1': tf.Variable(tf.random_normal([7 * 7 * 64, 1024])),
-    'out': tf.Variable(tf.random_normal([1024, 10]))
-}
-
-biases = {
-    'bc1': tf.Variable(tf.random_normal([32])),
-    'bc2': tf.Variable(tf.random_normal([64])),
-    'bd1': tf.Variable(tf.random_normal([1024])),
-    'out': tf.Variable(tf.random_normal([10]))
-}
-
-
-''' Data part '''
-def read_and_decode(filename, epochs=None):
-    filename_queue = tf.train.string_input_producer([filename], num_epochs=epochs)
-
-    reader = tf.TFRecordReader()
-    _, serialized_example = reader.read(filename_queue)
-
-    features = tf.parse_single_example(
-        serialized_example,
-        features={
-            'label': tf.FixedLenFeature([], tf.int64),
-            'img_raw' : tf.FixedLenFeature([], tf.string),
-        })
-
-    img = tf.decode_raw(features['img_raw'], tf.float32)
-    img = tf.reshape(img, [28, 28, 1])
-    label = tf.cast(features['label'], tf.int32)
-
-    return img, label
-
-
-epochs = 20
-batch_size = 1024
-total_batch = mnist.train.num_examples // batch_size
 
 min_after_dequeue = 100
 capacity = min_after_dequeue + 3 * batch_size
-img, label = read_and_decode(filename='data/mnist-train.tfrecord', epochs=epochs)
+img, label = MNist.read_and_decode(filename='data/mnist-train.tfrecord', epochs=epochs)
 img_batch, label_batch = tf.train.shuffle_batch([img, label],
                                                 batch_size=batch_size,
                                                 capacity=capacity,
                                                 min_after_dequeue=min_after_dequeue,
                                                 num_threads=32)
-img, label = read_and_decode(filename='data/mnist-test.tfrecord')
+img, label = MNist.read_and_decode(filename='data/mnist-test.tfrecord')
 x_test_batch, y_test_batch = tf.train.batch([img, label],
                                             batch_size=batch_size,
                                             capacity=capacity,
                                             num_threads=32)
 
-''' Data part (End) '''
+with tf.device('/gpu:%d' % gpu_dev):
+    net = TFCNN(img_batch, label_batch, is_sparse=True)
+    tf.get_variable_scope().reuse_variables()
+    net_test = TFCNN(x_test_batch, y_test_batch, is_train=False, is_sparse=True)
 
-pred = conv_net(img_batch, weights, biases)
-
-cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred, labels=label_batch))
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
-
-test_pred = conv_net(x_test_batch, weights, biases)
-
-correct_pred = tf.equal(tf.cast(tf.argmax(test_pred, 1), tf.int32), y_test_batch)
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-
-init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-
-with tf.Session() as sess:
-    sess.run(init)
+with tf.Session(config=config) as sess:
+    sess.run(tf.group(
+        tf.global_variables_initializer(), tf.local_variables_initializer()))
 
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -110,28 +41,19 @@ with tf.Session() as sess:
         epoch = 0
         s = time.time()
         while not coord.should_stop():
-            avg_cost = 0.
-            for i in range(total_batch):
-                _, c = sess.run([optimizer, cost])
-                avg_cost += c / total_batch
+            avg_loss = 0.
+            for i in range(dataset.num_train_batch):
+                _, c = sess.run([net.optimize, net.loss])
+                avg_loss += c / dataset.num_train_batch
             epoch += 1
-            print('Epoch {:02d}: cost = {:.9f}'.format(epoch, avg_cost))
-        '''
-        # if use string_input_producer without `num_epochs`
-        for epoch in range(epochs):
-            avg_cost = 0.
-            for i in range(total_batch):
-                _, c = sess.run([optimizer, cost])
-                avg_cost += c / total_batch
-            print('Epoch {:02d}: cost = {:.9f}'.format(epoch + 1, avg_cost))
-        '''
+            print('Epoch {:02d}: loss = {:.9f}'.format(epoch, avg_loss))
     except tf.errors.OutOfRangeError:
         print('Done training after {} epochs.'.format(epochs))
         print('Elasped time:', time.time() - s)
     finally:
         coord.request_stop()
 
-    print('Testing Accuracy: {:.2f}%'.format(sess.run(accuracy) * 100))
+    print('Testing Accuracy: {:.2f}%'.format(sess.run(net_test.accuracy) * 100))
 
     coord.join(threads)
     sess.close()

@@ -60,10 +60,11 @@ class TFCNN:
 
     NAME = 'TFCNN'
 
-    def __init__(self, images, labels, step=0, is_train=True):
+    def __init__(self, images, labels, step=0, is_train=True, is_sparse=False):
         self.images = images
         self.labels = labels
         self.is_train = is_train
+        self.is_sparse = is_sparse
         self.step = tf.Variable(step, name='global_step', trainable=False)
         self.build_graph()
         self.summary = tf.summary.merge_all()
@@ -86,7 +87,15 @@ class TFCNN:
 
     @property_scope
     def loss(self):
-        xentropy = tf.losses.softmax_cross_entropy(logits=self.logits, onehot_labels=self.labels)
+        cross_entropy = (
+            tf.losses.sparse_softmax_cross_entropy
+            if self.is_sparse else
+            tf.losses.softmax_cross_entropy)
+        if self.is_sparse:
+            xentropy = cross_entropy(logits=self.logits, labels=self.labels)
+        else:
+            xentropy = cross_entropy(logits=self.logits, onehot_labels=self.labels)
+
         loss = tf.reduce_mean(xentropy, name='loss')
         tf.summary.scalar('loss', loss)
         return loss
@@ -97,7 +106,10 @@ class TFCNN:
 
     @property_scope
     def accuracy(self):
-        correct_pred = tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.labels, 1))
+        if self.is_sparse:
+            correct_pred = tf.equal(tf.cast(tf.argmax(self.logits, 1), tf.int32), self.labels)
+        else:
+            correct_pred = tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.labels, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
         return accuracy
