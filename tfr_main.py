@@ -3,19 +3,18 @@ from tools import config as cfg
 import tensorflow as tf
 
 from tools import cli
-from tools.tfrecord import train_tfrecord, test_tfrecord, data_to_tfrecord
+from tools.tfrecord import Recorder
 from models.network import TFCNN
-from datasets import MNist
-
-dataset = MNist(batch_size=cfg.batch_size, reshape=False)
 
 
 def initial(is_train):
-    global net, saver
+    global net, saver, reader, num_train_batch
+    reader = Recorder(working_dir='data/mnist/')
     if is_train:
-        img_batch, label_batch = train_tfrecord('data/mnist-train.tfrecord', cfg)
+        img_batch, label_batch = reader.train_tfrecord('mnist-train.tfrecord', cfg)
     else:
-        img_batch, label_batch = test_tfrecord('data/mnist-test.tfrecord', cfg)
+        img_batch, label_batch = reader.test_tfrecord('mnist-test.tfrecord', cfg)
+    num_train_batch = reader.num_examples[0] // cfg.batch_size
     with tf.device(cfg.gpu_device):
         net = TFCNN(
             img_batch, label_batch,
@@ -34,9 +33,9 @@ def train():
         epoch = 0
         while not coord.should_stop():
             avg_loss = 0.
-            for i in range(dataset.num_train_batch):
+            for i in range(num_train_batch):
                 _, c, summary = sess.run(net.train_op)
-                avg_loss += c / dataset.num_train_batch
+                avg_loss += c / num_train_batch
             if epoch % 2 == 0:
                 saver.save(sess, cfg.model_path, global_step=net.step)
             train_writer.add_summary(summary, epoch)
@@ -63,13 +62,17 @@ def evaluate():
 
 
 def gen_tfrecord():
-    data_to_tfrecord(dataset.raw.train.images, dataset.raw.train.labels, filename='data/mnist-train.tfrecord')
-    data_to_tfrecord(dataset.raw.test.images, dataset.raw.test.labels, filename='data/mnist-test.tfrecord')
+    from datasets import MNist
+    dataset = MNist(batch_size=cfg.batch_size, reshape=False)
+    recorder = Recorder(working_dir='data/mnist/')
+    recorder.generate(dataset.train.images, dataset.train.labels, filename='mnist-train.tfrecord')
+    recorder.generate(dataset.test.images, dataset.test.labels, filename='mnist-test.tfrecord')
 
 
 if __name__ == '__main__':
     mode = cli.args.mode
-    initial(mode == 'train')
+    if mode in ['train', 'eval']:
+        initial(mode == 'train')
     func = {
         'gen': gen_tfrecord,
         'train': train,

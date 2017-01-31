@@ -38,7 +38,7 @@ def train():
 def evaluate():
     model_path = tf.train.latest_checkpoint(cfg.model_dir)
     saver.restore(sess, model_path)
-    acc = sess.run(net.accuracy, feed_dict={x: dataset.test_set.images, y: dataset.test_set.labels})
+    acc = sess.run(net.accuracy, feed_dict={x: dataset.test.images, y: dataset.test.labels})
     print('Testing Accuracy: {:.2f}%'.format(acc * 100))
 
 

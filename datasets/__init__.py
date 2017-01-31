@@ -1,4 +1,3 @@
-import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 
@@ -17,5 +16,9 @@ class MNist:
         return self.raw.train.next_batch(self.batch_size)
 
     @property
-    def test_set(self):
+    def test(self):
         return self.raw.test
+
+    @property
+    def train(self):
+        return self.raw.train
