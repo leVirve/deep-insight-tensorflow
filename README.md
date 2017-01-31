@@ -1,11 +1,11 @@
-# dpt
+# deep-insight-tensorflow
 
 ## Requirements:
 - Python 3.5
 - `tensorflow` >= `1.0.0rc`
 - `keras`
 
-Can install through freezed requirements file:
+Can install dependencies through freezed requirements file:
 ```bash
 $ pip install -r requirements.txt
 ```
@@ -14,35 +14,54 @@ $ pip install -r requirements.txt
 Three different implementations:
 - Keras: `keras_main.py`
 - Tensorflow: `tf_main.py`
-- Tensorflow with tfrecord: `tfr_record.py`
+- Tensorflow with [TFRecord](https://www.tensorflow.org/how_tos/reading_data/#standard_tensorflow_format): `tfr_record.py`
 
 ## Train
 
 ```bash
-$ CUDA_VISIBLE_DEVICES=1 python keras_main.py train
+# Train with Keras
+$ python keras_main.py train
+
+# Train with Tensorflow and use regular images + labels as input
 $ python tf_main.py train
+
+# Train with Tensorflow and use pre-generated TFRecord as input
 $ python tfr_main.py train
+```
+
+or in short with `Makefile`
+
+```bash
+# Train with Keras
+$ make keras
+
+# Train with Tensorflow and use regular images + labels as input
+$ make tf
+
+# Train with Tensorflow and use pre-generated TFRecord as input
+$ make tfr
 ```
 
 ## Evaluate
 
 ```bash
-$ CUDA_VISIBLE_DEVICES=1 python keras_main.py eval
+# Evaluate with Keras
+$ python keras_main.py eval
+
+# Evaluate with Tensorflow and use regular images + labels as input
 $ python tf_main.py eval
+
+# Evaluate with Tensorflow and use pre-generated TFRecord as input
 $ python tfr_main.py eval
 ```
 
 ## Predict
 
 ```bash
-$ CUDA_VISIBLE_DEVICES=1 python keras_main.py predict
+$ python keras_main.py predict
 ```
 
 ## Graph
 Network of MNIST can visulize in Tensorboard.
 
 ![mnist in tensorflow](doc/img/mnist-tsb-graph.png)
-
-## TODO
-- merge tf_main.py tfr_main.py
-- merge tf main

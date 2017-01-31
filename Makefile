@@ -1,21 +1,14 @@
-all: clean train tsb
+all: clean keras tsb
 
-train:
-	CUDA_VISIBLE_DEVICES=1 python main.py train
-
-tsb:
-	tensorboard --logdir=logs/
-
-clean:
-	rm -rf logs/
-
-
-# Fast access temporarily
-
+keras:
+	python keras_main.py train
 tf:
 	-python tf_main.py train
 tfr:
 	-python tfr_main.py train
 
-tsbsub:
+tsb:
 	tensorboard --logdir=./logs/train/
+
+clean:
+	rm -rf logs/
