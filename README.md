@@ -33,3 +33,7 @@ $ CUDA_VISIBLE_DEVICES=1 python main.py predict
 Network of MNIST can visulize in Tensorboard.
 
 ![mnist in tensorflow](doc/img/mnist-tsb-graph.png)
+
+## TODO
+- merge tf_main.py tfr_main.py
+- merge tf main
