@@ -1,8 +1,8 @@
-import config as cfg
+from tools import config as cfg
 
 import tensorflow as tf
 
-import cli
+from tools import cli
 from models.network import TFCNN
 from datasets import MNist
 
