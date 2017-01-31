@@ -4,6 +4,10 @@ train:
     epochs: 20
     batch_size: 1024
     train_dir: ./logs/train
+    tfrecord:
+        min_after_dequeue: 100
+        capacity: ~
+        num_threads: 32
 
 model:
     model_dir: ./logs/models/

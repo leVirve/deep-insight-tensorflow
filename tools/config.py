@@ -29,6 +29,11 @@ epochs = train['epochs']
 batch_size = train['batch_size']
 train_dir = train['train_dir']
 
+tfrecord = train['tfrecord']
+min_after_dequeue = tfrecord['min_after_dequeue']
+num_threads = tfrecord['num_threads']
+capacity = min_after_dequeue + 3 * batch_size
+
 model = cfg['model']
 model_path = model['model_path']
 model_dir = model['model_dir']

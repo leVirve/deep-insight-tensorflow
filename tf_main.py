@@ -9,13 +9,13 @@ from datasets import MNist
 dataset = MNist(batch_size=cfg.batch_size, reshape=False)
 
 
-def initial(mode):
+def initial(is_train):
     global x, y, net, saver
     with tf.device(cfg.gpu_device):
         with tf.name_scope('inputs'):
             x = tf.placeholder(tf.float32, [None, *dataset.image_shape])
             y = tf.placeholder(tf.float32, [None, dataset.classes])
-        net = TFCNN(x, y, is_train=mode).build_graph()
+        net = TFCNN(x, y, is_train=is_train).build_graph()
     saver = tf.train.Saver()
 
 
