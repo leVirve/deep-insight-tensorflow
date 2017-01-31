@@ -28,3 +28,8 @@ $ CUDA_VISIBLE_DEVICES=1 python main.py eval
 ```bash
 $ CUDA_VISIBLE_DEVICES=1 python main.py predict
 ```
+
+## Graph
+Network of MNIST can visulize in Tensorboard.
+
+![mnist in tensorflow](doc/img/mnist-tsb-graph.png)
