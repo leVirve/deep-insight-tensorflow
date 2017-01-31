@@ -53,7 +53,13 @@ def train():
 def evaluate():
     model_path = tf.train.latest_checkpoint(cfg.model_dir)
     saver.restore(sess, model_path)
+
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     print('Testing Accuracy: {:.2f}%'.format(sess.run(net.accuracy) * 100))
+    coord.request_stop()
+    coord.join(threads)
+    sess.close()
 
 
 if __name__ == '__main__':
