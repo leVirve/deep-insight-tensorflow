@@ -18,15 +18,11 @@ def lazy_property(f):
     return decorator
 
 
-def property_scope(f, *args, **kwargs):
-    attr = '_cached_' + f.__name__
-    @property
+def define_scope(f):
     @functools.wraps(f)
-    def decorator(self):
-        if not hasattr(self, attr):
-            with tf.name_scope(f.__name__, *args, **kwargs):
-                setattr(self, attr, f(self))
-        return getattr(self, attr)
+    def decorator(*args, **kwargs):
+        with tf.variable_scope(f.__name__):
+            return f(*args, **kwargs)
     return decorator
 
 
@@ -70,6 +66,8 @@ class TFCNN:
         self.summary = tf.summary.merge_all()
 
     def build_graph(self):
+        self.logits
+        self.loss
         self.optimize
         self.accuracy
 
@@ -85,7 +83,8 @@ class TFCNN:
         logits = layers.dense(dropout, units=10, name='fc2')
         return logits
 
-    @property_scope
+    @lazy_property
+    @define_scope
     def loss(self):
         cross_entropy = (
             tf.losses.sparse_softmax_cross_entropy
@@ -100,11 +99,13 @@ class TFCNN:
         tf.summary.scalar('loss', loss)
         return loss
 
-    @property_scope
+    @lazy_property
+    @define_scope
     def optimize(self):
         return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=self.step)
 
-    @property_scope
+    @lazy_property
+    @define_scope
     def accuracy(self):
         if self.is_sparse:
             correct_pred = tf.equal(tf.cast(tf.argmax(self.logits, 1), tf.int32), self.labels)
