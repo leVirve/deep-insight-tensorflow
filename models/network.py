@@ -1,16 +1,16 @@
-import functools
-
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten, Convolution2D, MaxPooling2D
 import tensorflow as tf
 from tensorflow.python.layers import layers
 
-from models.base import BaseNet
 
-
-class KerasCNN(BaseNet):
+class KerasCNN:
 
     NAME = 'KerasCNN'
+    WEIGHTS_FOLDER_FORMAT = 'data/weights/{}_weights.h5'
+
+    def __init__(self, image_shape=None):
+        self.input_shape = image_shape
 
     def build_model(self):
         layers = [
@@ -32,6 +32,21 @@ class KerasCNN(BaseNet):
             loss='categorical_crossentropy',
             metrics=['accuracy'])
         return self
+
+    def get_weight_name(self, filename):
+        return filename or self.WEIGHTS_FOLDER_FORMAT.format(self.NAME)
+
+    def load(self, filename=None):
+        weights_name = self.get_weight_name(filename)
+        return self.model.load_weights(weights_name)
+
+    def save(self, filename=None):
+        import os
+        weights_name = self.get_weight_name(filename)
+        dir_path = os.path.dirname(weights_name)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
+        return self.model.save_weights(weights_name)
 
 
 class TFCNN:

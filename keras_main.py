@@ -47,5 +47,5 @@ if __name__ == '__main__':
     }.get(args.mode, evaluate)
 
     with tf.device('/gpu:0'):
-        net = KerasCNN(image_shape=(28, 28))
+        net = KerasCNN(image_shape=(28, 28, 1))
         func(net)
