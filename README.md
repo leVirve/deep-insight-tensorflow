@@ -2,7 +2,7 @@
 
 ## Requirements:
 - Python 3.5
-- `tensorflow` >= 1.0.0rc
+- `tensorflow` >= `1.0.0rc`
 - `keras`
 
 Can install through freezed requirements file:
@@ -10,23 +10,32 @@ Can install through freezed requirements file:
 $ pip install -r requirements.txt
 ```
 
+### Implementations
+Three different implementations:
+- Keras: `keras_main.py`
+- Tensorflow: `tf_main.py`
+- Tensorflow with tfrecord: `tfr_record.py`
+
 ## Train
 
-Trainning on specific devices (`with tf.device` statement seems not working currently)
 ```bash
-$ CUDA_VISIBLE_DEVICES=1 python main.py train
+$ CUDA_VISIBLE_DEVICES=1 python keras_main.py train
+$ python tf_main.py train
+$ python tfr_main.py train
 ```
 
 ## Evaluate
 
 ```bash
-$ CUDA_VISIBLE_DEVICES=1 python main.py eval
+$ CUDA_VISIBLE_DEVICES=1 python keras_main.py eval
+$ python tf_main.py eval
+$ python tfr_main.py eval
 ```
 
 ## Predict
 
 ```bash
-$ CUDA_VISIBLE_DEVICES=1 python main.py predict
+$ CUDA_VISIBLE_DEVICES=1 python keras_main.py predict
 ```
 
 ## Graph
