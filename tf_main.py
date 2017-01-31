@@ -14,7 +14,7 @@ with tf.device('/gpu:%d' % gpu_dev):
     with tf.name_scope('inputs'):
         x = tf.placeholder(tf.float32, [None, *dataset.image_shape])
         y = tf.placeholder(tf.float32, [None, dataset.classes])
-    net = TFCNN(x, y)
+    net = TFCNN(x, y).build_graph()
 
 with tf.Session(config=config) as sess:
     sess.run(tf.global_variables_initializer())
@@ -26,7 +26,7 @@ with tf.Session(config=config) as sess:
         loss = 0.
         for i in range(dataset.num_train_batch):
             batch_x, batch_y = dataset.next_batch()
-            summary, _, c = sess.run([net.summary, net.optimize, net.loss], feed_dict={x: batch_x, y: batch_y})
+            _, c, summary = sess.run(net.train_op, feed_dict={x: batch_x, y: batch_y})
             loss += c
         train_writer.add_summary(summary, epoch)
         print('Epoch {:02d}: loss = {:.9f}'.format(epoch + 1, loss / dataset.num_train_batch))

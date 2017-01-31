@@ -26,9 +26,9 @@ x_test_batch, y_test_batch = tf.train.batch([img, label],
                                             num_threads=32)
 
 with tf.device('/gpu:%d' % gpu_dev):
-    net = TFCNN(img_batch, label_batch, is_sparse=True)
+    net = TFCNN(img_batch, label_batch, is_sparse=True).build_graph()
     tf.get_variable_scope().reuse_variables()
-    net_test = TFCNN(x_test_batch, y_test_batch, is_train=False, is_sparse=True)
+    net_test = TFCNN(x_test_batch, y_test_batch, is_train=False, is_sparse=True).build_graph()
 
 with tf.Session(config=config) as sess:
     sess.run(tf.group(

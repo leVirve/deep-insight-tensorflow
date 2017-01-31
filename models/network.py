@@ -8,24 +8,6 @@ from tensorflow.python.layers import layers
 from models.base import BaseNet
 
 
-def lazy_property(f):
-    attr = '_cached_' + f.__name__
-    @property
-    def decorator(self):
-        if not hasattr(self, attr):
-            setattr(self, attr, f(self))
-        return getattr(self, attr)
-    return decorator
-
-
-def define_scope(f):
-    @functools.wraps(f)
-    def decorator(*args, **kwargs):
-        with tf.variable_scope(f.__name__):
-            return f(*args, **kwargs)
-    return decorator
-
-
 class KerasCNN(BaseNet):
 
     NAME = 'KerasCNN'
@@ -59,20 +41,28 @@ class TFCNN:
     def __init__(self, images, labels, step=0, is_train=True, is_sparse=False):
         self.images = images
         self.labels = labels
+        self.step = step
         self.is_train = is_train
         self.is_sparse = is_sparse
-        self.step = tf.Variable(step, name='global_step', trainable=False)
-        self.build_graph()
-        self.summary = tf.summary.merge_all()
 
     def build_graph(self):
-        self.logits
-        self.loss
-        self.optimize
-        self.accuracy
+        self.step = tf.Variable(self.step, name='global_step', trainable=False)
+        self.prediction = self.build('model', wrapped=False)
+        self.loss = self.build('loss')
+        self.optimize = self.build('optimize')
+        self.accuracy = self.build('accuracy')
+        self.summary = tf.summary.merge_all()
+        self.train_op = [self.optimize, self.loss, self.summary]
+        return self
 
-    @lazy_property
-    def logits(self):
+    def build(self, name, wrapped=True):
+        builder = getattr(self, 'build_{}'.format(name))
+        if not wrapped:
+            return builder()
+        with tf.name_scope(name):
+            return builder()
+
+    def build_model(self):
         conv1 = layers.conv2d(self.images, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
         pool1 = layers.max_pooling2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
         conv2 = layers.conv2d(pool1, 64, [5, 5], padding='same', activation=tf.nn.relu, name='conv2')
@@ -83,34 +73,28 @@ class TFCNN:
         logits = layers.dense(dropout, units=10, name='fc2')
         return logits
 
-    @lazy_property
-    @define_scope
-    def loss(self):
+    def build_loss(self):
         cross_entropy = (
             tf.losses.sparse_softmax_cross_entropy
             if self.is_sparse else
             tf.losses.softmax_cross_entropy)
         if self.is_sparse:
-            xentropy = cross_entropy(logits=self.logits, labels=self.labels)
+            xentropy = cross_entropy(logits=self.prediction, labels=self.labels)
         else:
-            xentropy = cross_entropy(logits=self.logits, onehot_labels=self.labels)
+            xentropy = cross_entropy(logits=self.prediction, onehot_labels=self.labels)
 
         loss = tf.reduce_mean(xentropy, name='loss')
         tf.summary.scalar('loss', loss)
         return loss
 
-    @lazy_property
-    @define_scope
-    def optimize(self):
+    def build_optimize(self):
         return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=self.step)
 
-    @lazy_property
-    @define_scope
-    def accuracy(self):
+    def build_accuracy(self):
         if self.is_sparse:
-            correct_pred = tf.equal(tf.cast(tf.argmax(self.logits, 1), tf.int32), self.labels)
+            correct_pred = tf.equal(tf.cast(tf.argmax(self.prediction, 1), tf.int32), self.labels)
         else:
-            correct_pred = tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.labels, 1))
+            correct_pred = tf.equal(tf.argmax(self.prediction, 1), tf.argmax(self.labels, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
         return accuracy
