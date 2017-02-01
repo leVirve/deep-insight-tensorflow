@@ -78,73 +78,90 @@ class TensorflowFramework(BasicFramework):
 
     name = 'TensorflowFramework'
     need_setup = ['train', 'evaluate', 'export', 'predict']
+    exported_graphdef = 'tf_graphdef.pb'
 
     def setup(self, mode):
-        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
-        with tf.device(self.cfg.gpu_device):
-            with tf.name_scope('inputs'):
-                x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
-                y = tf.placeholder(tf.float32, [None, dataset.classes], name='label')
-            net = TensorCNN(x, y, is_train=mode == 'train').build_graph()
-        self.dataset = dataset
-        self.net = net
-        self.x, self.y = x, y
+        self.net = self._build_graph(mode)
         self.saver = tf.train.Saver()
         self.session = tf.Session(config=self.cfg.config)
+        self.writer = tf.summary.FileWriter(self.cfg.train_dir, self.session.graph)
+        self.session.run(tf.global_variables_initializer())
         return self
+
+    def _build_graph(self, mode):
+        with tf.device(self.cfg.gpu_device):
+            x, y = self._build_inputs()
+            net = TensorCNN(x, y, is_train=mode == 'train').build_graph()
+        return net
+
+    def _build_inputs(self):
+        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
+        with tf.name_scope('inputs'):
+            x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
+            y = tf.placeholder(tf.float32, [None, dataset.classes], name='label')
+        self.dataset = dataset
+        self.x = x
+        self.y = y
+        return x, y
+
+    def _save_session(self):
+        self.saver.save(
+            self.session, self.cfg.model_path, global_step=self.net.step)
+
+    def _restore_session(self):
+        latest_ckpt = tf.train.latest_checkpoint(self.cfg.model_dir)
+        self.saver.restore(self.session, latest_ckpt)
+
+    def _restore_graph_def(self):
+        with open(self.cfg.model_dir + self.exported_graphdef, 'rb') as f:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+            return graph_def
+
+    def _seesion_step(self, op, batch_bundle):
+        x, y = batch_bundle
+        return self.session.run(op, feed_dict={self.x: x, self.y: y})
+
+    def train(self):
+        num_batches = self.dataset.num_train_batch
+
+        for epoch in range(1, self.cfg.epochs + 1):
+            loss = 0.
+            for i in range(num_batches):
+                batch_x, batch_y = self.dataset.next_batch()
+                _, c, summary = self._seesion_step(self.net.train_op, (batch_x, batch_y))
+                loss += c / num_batches
+            self.writer.add_summary(summary, epoch)
+            if epoch % 2 == 0:
+                self._save_session()
+            print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
+
+    def evaluate(self):
+        self._restore_session()
+        acc = self._seesion_step(
+                self.net.accuracy,
+                (self.dataset.test.images, self.dataset.test.labels))
+        print('Testing Accuracy: {:.2f}%'.format(acc * 100))
+
+    def export(self):
+        self._restore_session()
+        graph = convert_variables_to_constants(
+            self.session, self.session.graph_def, ['accuracy/pred_class'])
+        tf.train.write_graph(graph, self.cfg.model_dir, self.exported_graphdef, as_text=False)
+
+    def predict(self):
+        graph_def = self._restore_graph_def()
+        output = tf.import_graph_def(
+            graph_def,
+            input_map={'inputs/image:0': self.dataset.test.images[:10]},
+            return_elements=['accuracy/pred_class:0'],
+            name='pred')
+        print(self.session.run(output))
 
     def shutdown(self):
         session = getattr(self, 'session')
         if session:
             session.close()
-
-    def train(self):
-        cfg = self.cfg
-        net = self.net
-        sess = self.session
-        dataset = self.dataset
-        num_train_batch = dataset.num_train_batch
-
-        sess.run(tf.global_variables_initializer())
-        train_writer = tf.summary.FileWriter(cfg.train_dir, sess.graph)
-        for epoch in range(cfg.epochs):
-            loss = 0.
-            for i in range(num_train_batch):
-                batch_x, batch_y = dataset.next_batch()
-                _, c, summary = sess.run(net.train_op,
-                                         feed_dict={self.x: batch_x,
-                                                    self.y: batch_y})
-                loss += c
-            train_writer.add_summary(summary, epoch)
-            if epoch % 2 == 0:
-                self.saver.save(sess, cfg.model_path, global_step=net.step)
-            print('Epoch {:02d}: loss = {:.9f}'.format(epoch + 1, loss / num_train_batch))
-
-    def evaluate(self):
-        model_path = tf.train.latest_checkpoint(self.cfg.model_dir)
-        self.saver.restore(self.session, model_path)
-        acc = self.session.run(self.net.accuracy,
-                               feed_dict={self.x: self.dataset.test.images,
-                                          self.y: self.dataset.test.labels})
-        print('Testing Accuracy: {:.2f}%'.format(acc * 100))
-
-    def export(self):
-        sess = self.session
-        model_path = tf.train.latest_checkpoint(self.cfg.model_dir)
-        self.saver.restore(sess, model_path)
-        graph = convert_variables_to_constants(sess, sess.graph_def, ['accuracy/pred_class'])
-        tf.train.write_graph(graph, self.cfg.model_dir, 'exported_graph.pb', as_text=False)
-
-    def predict(self):
-        with open(self.cfg.model_dir + 'exported_graph.pb', 'rb') as f:
-            graph_def = tf.GraphDef()
-            graph_def.ParseFromString(f.read())
-            output = tf.import_graph_def(
-                graph_def,
-                input_map={'inputs/image:0': self.dataset.test.images[:10]},
-                return_elements=['accuracy/pred_class:0'],
-                name='pred')
-            print(self.session.run(output))
 
 
 class TensorflowStdFramework(BasicFramework):
