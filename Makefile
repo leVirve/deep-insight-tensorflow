@@ -1,11 +1,11 @@
 all: clean keras tsb
 
 keras:
-	python keras_main.py train
+	-python main.py keras train
 tf:
-	-python tf_main.py train
+	-python main.py tf train
 tfr:
-	-python tfr_main.py train
+	-python main.py tfr train
 
 tsb:
 	tensorboard --logdir=./logs/train/

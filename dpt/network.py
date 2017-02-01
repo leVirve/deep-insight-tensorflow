@@ -50,9 +50,9 @@ class KerasCNN:
         return self.model.save_weights(weights_name)
 
 
-class TFCNN:
+class TensorCNN:
 
-    NAME = 'TFCNN'
+    NAME = 'TensorCNN'
 
     def __init__(self, images, labels, step=0, is_train=True, is_sparse=False):
         self.images = images

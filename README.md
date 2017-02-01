@@ -12,67 +12,77 @@ $ pip install -r requirements.txt
 
 ### Implementations
 Three different implementations:
-- Keras: `keras_main.py`
-- Tensorflow: `tf_main.py`
-- Tensorflow with [TFRecord](https://www.tensorflow.org/how_tos/reading_data/#standard_tensorflow_format): `tfr_record.py`
+- `KerasFramework`: Keras
+- `TensorflowFramework`: Tensorflow
+- `TensorflowStdFramework`: Tensorflow with [TFRecord](https://www.tensorflow.org/how_tos/reading_data/#standard_tensorflow_format)
 
-## Train
+## Commands
 
 ```bash
-# Train with Keras
-$ python keras_main.py train
+$ python main.py
 
-# Train with Tensorflow and use regular images + labels as input
-$ python tf_main.py train
-
-# Train with Tensorflow and use pre-generated TFRecord as input
-$ python tfr_main.py train
+Usage: main.py [FRAMEWORK] [MODE]
 ```
 
-or in short with `Makefile`
+### KerasFramework
+```bash
+$ python main.py keras [MODE]
+```
+`[MODE]` can be:
+- `train`
+- `evaluate`
+- `predict`
 
+or training in short with `Makefile`
 ```bash
 # Train with Keras
 $ make keras
+```
 
+### TensorflowFramework
+```bash
+$ python main.py tf [MODE]
+```
+`[MODE]` can be:
+- `train`
+- `evaluate`
+- `export`
+- `predict`
+
+or training in short with `Makefile`
+```bash
 # Train with Tensorflow and use regular images + labels as input
 $ make tf
+```
 
+### TensorflowStdFramework
+```bash
+$ python main.py tfr [MODE]
+```
+`[MODE]` can be:
+- `train`
+- `evaluate`
+- `gen_tfrecord`
+
+or training in short with `Makefile`
+```bash
 # Train with Tensorflow and use pre-generated TFRecord as input
 $ make tfr
 ```
 
-*Note*: to generate the TFRecord used for training in `tfr_main`, use this command first.
+*Note*: do generate the TFRecord before training by using this command first.
 ```bash
-$ python tfr_main.py gen
+$ python main.py tfr gen_tfrecord
 ```
 
-## Evaluate
-
-```bash
-# Evaluate with Keras
-$ python keras_main.py eval
-
-# Evaluate with Tensorflow and use regular images + labels as input
-$ python tf_main.py eval
-
-# Evaluate with Tensorflow and use pre-generated TFRecord as input
-$ python tfr_main.py eval
-```
-
-## Predict
-
-```bash
-$ python keras_main.py predict
-```
 
 ## Exporting & Applying Model
 ```bash
 # export trained model (including `GraphDef` and 'variables') into single file
-$ python tf_main.py export
+$ python main.py tf export
 
 # restore and apply model onto inputs
-$ python tf_main.py predict
+$ python main.py tf predict
 ```
 
 ## Network Graph

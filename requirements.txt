@@ -5,3 +5,4 @@ PyYAML==3.12
 scipy==0.18.1
 six==1.10.0
 tensorflow-gpu==1.0.0rc0
+click>=6.7
