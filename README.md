@@ -61,7 +61,16 @@ $ python tfr_main.py eval
 $ python keras_main.py predict
 ```
 
-## Graph
-Network of MNIST can visulize in Tensorboard.
+## Exporting & Applying Model
+```bash
+# export trained model (including `GraphDef` and 'variables') into single file
+$ python tf_main.py export
+
+# restore and apply model onto inputs
+$ python tf_main.py predict
+```
+
+## Network Graph
+Network of MNIST can visulize as graph in Tensorboard.
 
 ![mnist in tensorflow](doc/img/mnist-tsb-graph.png)

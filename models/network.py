@@ -107,10 +107,11 @@ class TFCNN:
         return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=self.step)
 
     def build_accuracy(self):
+        pred_class = tf.argmax(self.prediction, 1, name='pred_class')
         if self.is_sparse:
-            correct_pred = tf.equal(tf.cast(tf.argmax(self.prediction, 1), tf.int32), self.labels)
+            correct_pred = tf.equal(tf.cast(pred_class, tf.int32), self.labels)
         else:
-            correct_pred = tf.equal(tf.argmax(self.prediction, 1), tf.argmax(self.labels, 1))
+            correct_pred = tf.equal(pred_class, tf.argmax(self.labels, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
         return accuracy

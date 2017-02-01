@@ -1,6 +1,7 @@
 from tools import config as cfg
 
 import tensorflow as tf
+from tensorflow.python.framework.graph_util import convert_variables_to_constants
 
 from tools import cli
 from models.network import TFCNN
@@ -13,8 +14,8 @@ def initial(is_train):
     global x, y, net, saver
     with tf.device(cfg.gpu_device):
         with tf.name_scope('inputs'):
-            x = tf.placeholder(tf.float32, [None, *dataset.image_shape])
-            y = tf.placeholder(tf.float32, [None, dataset.classes])
+            x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
+            y = tf.placeholder(tf.float32, [None, dataset.classes], name='label')
         net = TFCNN(x, y, is_train=is_train).build_graph()
     saver = tf.train.Saver()
 
@@ -42,12 +43,33 @@ def evaluate():
     print('Testing Accuracy: {:.2f}%'.format(acc * 100))
 
 
+def export():
+    model_path = tf.train.latest_checkpoint(cfg.model_dir)
+    saver.restore(sess, model_path)
+    graph = convert_variables_to_constants(sess, sess.graph_def, ['accuracy/pred_class'])
+    tf.train.write_graph(graph, cfg.model_dir, 'exported_graph.pb', as_text=False)
+
+
+def predict():
+    with open(cfg.model_dir + 'exported_graph.pb', 'rb') as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        output = tf.import_graph_def(
+            graph_def,
+            input_map={'inputs/image:0': dataset.test.images[:10]},
+            return_elements=['accuracy/pred_class:0'],
+            name='pred')
+        print(sess.run(output))
+
+
 if __name__ == '__main__':
     mode = cli.args.mode
     initial(mode == 'train')
     func = {
         'train': train,
         'eval': evaluate,
+        'export': export,
+        'predict': predict,
     }.get(mode, evaluate)
 
     with tf.Session(config=cfg.config) as sess:
