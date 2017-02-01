@@ -1,3 +1,5 @@
+import os
+
 ''' for KerasFramework '''
 from keras.callbacks import TensorBoard
 
@@ -35,6 +37,8 @@ class BasicFramework:
 class KerasFramework(BasicFramework):
 
     name = 'KerasFramework'
+    need_setup = ['train', 'evaluate', 'predict']
+    weights_path = 'data/weights/{}_weights.h5'
 
     def setup(self, mode):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
@@ -59,19 +63,31 @@ class KerasFramework(BasicFramework):
                       nb_epoch=self.cfg.epochs,
                       batch_size=self.cfg.batch_size,
                       callbacks=callbacks)
-        net.save()
+        self._save_weights()
 
     def evaluate(self):
-        net = self.net
-        net.load()
-        net.compile()
-        _, accuracy = net.model.evaluate(
+        self._load_weights()
+        self.net.compile()
+        _, accuracy = self.net.model.evaluate(
             *self.test_set, batch_size=self.cfg.batch_size)
-        print('== %s ==\nTest accuracy: %.2f%%' % (net.NAME, accuracy * 100))
+        print('== %s ==\nTest accuracy: %.2f%%' % (self.net.NAME, accuracy * 100))
 
     def predict(self):
-        self.net.load()
+        self._load_weights()
         print(self.net.model.predict(self.dataset.raw.test.images))
+
+    def _get_weight_name(self):
+        return self.weights_path.format(self.net.NAME)
+
+    def _load_weights(self):
+        return self.net.model.load_weights(self._get_weight_name())
+
+    def _save_weights(self):
+        weights_name = self._get_weight_name()
+        dir_path = os.path.dirname(weights_name)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
+        return self.net.model.save_weights(weights_name)
 
 
 class TensorflowFramework(BasicFramework):
@@ -81,7 +97,7 @@ class TensorflowFramework(BasicFramework):
     exported_graphdef = 'tf_graphdef.pb'
 
     def setup(self, mode):
-        self.train = mode == 'train'
+        self.is_train = mode == 'train'
         x, y = self._build_inputs()
         self.net = self._build_graph(x, y)
         self.saver = tf.train.Saver()
@@ -92,7 +108,7 @@ class TensorflowFramework(BasicFramework):
 
     def _build_graph(self,x, y):
         with tf.device(self.cfg.gpu_device):
-            return TensorCNN(x, y, is_train=self.train).build_graph()
+            return TensorCNN(x, y, is_train=self.is_train).build_graph()
 
     def _build_inputs(self):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
@@ -172,7 +188,7 @@ class TensorflowStdFramework(TensorflowFramework):
     exported_graphdef = 'tfr_graphdef.pb'
 
     def setup(self, mode):
-        self.train = mode == 'train'
+        self.is_train = mode == 'train'
         x, y = self._build_inputs()
         self.net = self._build_graph(x, y)
         self.saver = tf.train.Saver()
@@ -182,7 +198,7 @@ class TensorflowStdFramework(TensorflowFramework):
 
     def _build_graph(self, x, y):
         with tf.device(self.cfg.gpu_device):
-            return TensorCNN(x, y, is_sparse=True, is_train=self.train).build_graph()
+            return TensorCNN(x, y, is_sparse=True, is_train=self.is_train).build_graph()
 
     def _build_inputs(self):
         img_batch, label_batch, num_train_batch = self._reader_batch()
@@ -193,7 +209,7 @@ class TensorflowStdFramework(TensorflowFramework):
         return self.session.run(op)
 
     def _reader_batch(self):
-        train = self.train
+        train = self.is_train
         reader = tfrecord.Recorder(working_dir='data/mnist/')
         batch_generator = getattr(reader, 'train_tfrecord' if train else 'test_tfrecord')
         tfrecord_file = 'mnist-train.tfrecord' if train else 'mnist-test.tfrecord'
