@@ -81,18 +81,18 @@ class TensorflowFramework(BasicFramework):
     exported_graphdef = 'tf_graphdef.pb'
 
     def setup(self, mode):
-        self.net = self._build_graph(mode == 'train')
+        self.train = mode == 'train'
+        x, y = self._build_inputs()
+        self.net = self._build_graph(x, y)
         self.saver = tf.train.Saver()
         self.session = tf.Session(config=self.cfg.config)
         self.writer = tf.summary.FileWriter(self.cfg.train_dir, self.session.graph)
         self.session.run(tf.global_variables_initializer())
         return self
 
-    def _build_graph(self, is_train):
+    def _build_graph(self,x, y):
         with tf.device(self.cfg.gpu_device):
-            x, y = self._build_inputs()
-            net = TensorCNN(x, y, is_train=is_train).build_graph()
-        return net
+            return TensorCNN(x, y, is_train=self.train).build_graph()
 
     def _build_inputs(self):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
@@ -169,35 +169,31 @@ class TensorflowStdFramework(TensorflowFramework):
 
     name = 'TensorflowStdFramework'
     need_setup = ['train', 'evaluate']
-
-    #TODO: can export but dont know how to predict
     exported_graphdef = 'tfr_graphdef.pb'
 
     def setup(self, mode):
-        self.net = self._build_graph(mode == 'train')
+        self.train = mode == 'train'
+        x, y = self._build_inputs()
+        self.net = self._build_graph(x, y)
         self.saver = tf.train.Saver()
         self.session = tf.Session(config=self.cfg.config)
         self.session.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
         return self
 
-    def _build_graph(self, is_train):
+    def _build_graph(self, x, y):
         with tf.device(self.cfg.gpu_device):
-            x, y = self._build_inputs(is_train)
-            net = TensorCNN(x, y, is_sparse=True, is_train=is_train).build_graph()
-        return net
+            return TensorCNN(x, y, is_sparse=True, is_train=self.train).build_graph()
 
-    def _build_inputs(self, is_train):
-        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
-        img_batch, label_batch, num_train_batch = self._reader_batch(is_train)
-        self.dataset = dataset
+    def _build_inputs(self):
+        img_batch, label_batch, num_train_batch = self._reader_batch()
         self.num_train_batch = num_train_batch
-        self._predict_input = dataset.test.images[:10]
         return img_batch, label_batch
 
     def _seesion_step(self, op):
         return self.session.run(op)
 
-    def _reader_batch(self, train):
+    def _reader_batch(self):
+        train = self.train
         reader = tfrecord.Recorder(working_dir='data/mnist/')
         batch_generator = getattr(reader, 'train_tfrecord' if train else 'test_tfrecord')
         tfrecord_file = 'mnist-train.tfrecord' if train else 'mnist-test.tfrecord'
@@ -244,3 +240,15 @@ class TensorflowStdFramework(TensorflowFramework):
         recorder = tfrecord.Recorder(working_dir='data/mnist/')
         recorder.generate(dataset.train.images, dataset.train.labels, filename='mnist-train.tfrecord')
         recorder.generate(dataset.test.images, dataset.test.labels, filename='mnist-test.tfrecord')
+
+    def export(self):
+        self._build_inputs = super()._build_inputs
+        self._build_graph = super()._build_graph
+        self.setup('export')
+        return super().export()
+
+    def predict(self):
+        self._build_inputs = super()._build_inputs
+        self._build_graph = super()._build_graph
+        self.setup('predict')
+        return super().predict()

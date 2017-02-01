@@ -62,6 +62,8 @@ $ python main.py tfr [MODE]
 `[MODE]` can be:
 - `train`
 - `evaluate`
+- `export`
+- `predict`
 - `gen_tfrecord`
 
 or training in short with `Makefile`
@@ -80,9 +82,11 @@ $ python main.py tfr gen_tfrecord
 ```bash
 # export trained model (including `GraphDef` and 'variables') into single file
 $ python main.py tf export
+$ python main.py tfr export
 
 # restore and apply model onto inputs
 $ python main.py tf predict
+$ python main.py tfr predict
 ```
 
 ## Network Graph
