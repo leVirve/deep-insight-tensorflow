@@ -48,19 +48,19 @@ class TensorCNN:
     def build_graph(self):
         self.step = tf.Variable(self.step, name='global_step', trainable=False)
         self.prediction = self.build('model', wrapped=False)
-        self.loss = self.build('loss')
-        self.optimize = self.build('optimize')
-        self.accuracy = self.build('accuracy')
+        ordered_op_names = ['loss', 'optimize', 'accuracy']
+        for op_name in ordered_op_names:
+            setattr(self, op_name, self.build(op_name))
         self.summary = tf.summary.merge_all()
         self.train_op = [self.optimize, self.loss, self.summary]
         return self
 
     def build(self, name, wrapped=True):
         builder = getattr(self, 'build_{}'.format(name))
-        if not wrapped:
-            return builder()
-        with tf.name_scope(name):
-            return builder()
+        if wrapped:
+            with tf.name_scope(name):
+                return builder()
+        return builder()
 
     def build_model(self):
         conv1 = layers.conv2d(self.images, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
@@ -78,12 +78,9 @@ class TensorCNN:
             tf.losses.sparse_softmax_cross_entropy
             if self.is_sparse else
             tf.losses.softmax_cross_entropy)
-        if self.is_sparse:
-            xentropy = cross_entropy(logits=self.prediction, labels=self.labels)
-        else:
-            xentropy = cross_entropy(logits=self.prediction, onehot_labels=self.labels)
-
-        loss = tf.reduce_mean(xentropy, name='loss')
+        kwarg = {'labels' if self.is_sparse else 'onehot_labels': self.labels}
+        xentropy = cross_entropy(logits=self.prediction, **kwarg, scope='xentropy')
+        loss = tf.reduce_mean(xentropy, name='mean_loss')
         tf.summary.scalar('loss', loss)
         return loss
 
