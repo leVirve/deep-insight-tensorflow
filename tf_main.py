@@ -1,11 +1,11 @@
-from tools import config as cfg
+from dpt.tools import config as cfg
 
 import tensorflow as tf
 from tensorflow.python.framework.graph_util import convert_variables_to_constants
 
-from tools import cli
-from models.network import TFCNN
-from datasets import MNist
+from dpt.tools import cli
+from dpt.network import TFCNN
+from dpt.dataset import MNist
 
 dataset = MNist(batch_size=cfg.batch_size, reshape=False)
 

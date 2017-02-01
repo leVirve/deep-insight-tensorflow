@@ -1,9 +1,9 @@
-import config as cfg
+from dpt.tools import config as cfg
 
 import argparse
 
-from models.network import KerasCNN
-from datasets import MNist
+from dpt.network import KerasCNN
+from dpt.dataset import MNist
 
 dataset = MNist(batch_size=cfg.batch_size, reshape=False)
 train_set = (dataset.raw.train.images, dataset.raw.train.labels)

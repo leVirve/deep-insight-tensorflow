@@ -1,10 +1,11 @@
-from tools import config as cfg
+from dpt.tools import config as cfg
 
 import tensorflow as tf
 
-from tools import cli
-from tools.tfrecord import Recorder
-from models.network import TFCNN
+from dpt.tools import cli
+from dpt.dataset import MNist
+from dpt.tools.tfrecord import Recorder
+from dpt.network import TFCNN
 
 
 def initial(is_train):
@@ -62,7 +63,6 @@ def evaluate():
 
 
 def gen_tfrecord():
-    from datasets import MNist
     dataset = MNist(batch_size=cfg.batch_size, reshape=False)
     recorder = Recorder(working_dir='data/mnist/')
     recorder.generate(dataset.train.images, dataset.train.labels, filename='mnist-train.tfrecord')

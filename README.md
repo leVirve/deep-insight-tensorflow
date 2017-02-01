@@ -1,7 +1,7 @@
 # deep-insight-tensorflow
 
 ## Requirements:
-- Python 3.5
+- Python >= 3.5
 - `tensorflow` >= `1.0.0rc`
 - `keras`
 
@@ -40,6 +40,11 @@ $ make tf
 
 # Train with Tensorflow and use pre-generated TFRecord as input
 $ make tfr
+```
+
+*Note*: to generate the TFRecord used for training in `tfr_main`, use this command first.
+```bash
+$ python tfr_main.py gen
 ```
 
 ## Evaluate
