@@ -9,7 +9,7 @@ from tensorflow.python.framework.graph_util import convert_variables_to_constant
 
 from dpt.dataset import MNist
 from dpt.network import KerasCNN, TensorCNN
-from dpt.tools import tfrecord
+from dpt.tools import tfrecord, timeit
 
 
 class BasicFramework:
@@ -135,6 +135,7 @@ class TensorflowFramework(BasicFramework):
             graph_def.ParseFromString(f.read())
             return graph_def
 
+    @timeit
     def _train_an_epoch(self, epoch, num_batches):
         loss = 0.
         for i in range(num_batches):
@@ -150,10 +151,11 @@ class TensorflowFramework(BasicFramework):
             if epoch % 2 == 0:
                 self._save_session()
             print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
+        self.writer.flush()
 
     def evaluate(self):
         self._restore_session()
-        acc = self._seesion_step(
+        acc = self.session.run(
                 self.net.accuracy,
                 (self.dataset.test.images, self.dataset.test.labels))
         print('Testing Accuracy: {:.2f}%'.format(acc * 100))
@@ -185,6 +187,7 @@ class TensorflowStdFramework(TensorflowFramework):
     need_setup = ['train', 'evaluate']
     exported_graphdef = 'tfr_graphdef.pb'
 
+    @timeit
     def setup(self, mode):
         self.is_train = mode == 'train'
         x, y = self._build_inputs()
@@ -195,18 +198,18 @@ class TensorflowStdFramework(TensorflowFramework):
         self.session.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
         return self
 
+    @timeit
     def _build_graph(self, x, y):
         with tf.device(self.cfg.gpu_device):
             return TensorCNN(x, y, is_sparse=True, is_train=self.is_train).build_graph()
 
+    @timeit
     def _build_inputs(self):
         img_batch, label_batch, num_train_batch = self._reader_batch()
         self.num_train_batch = num_train_batch
         return img_batch, label_batch
 
-    def _seesion_step(self, op):
-        return self.session.run(op)
-
+    @timeit
     def _reader_batch(self):
         train = self.is_train
         reader = tfrecord.Recorder(working_dir='data/mnist/')
@@ -216,6 +219,7 @@ class TensorflowStdFramework(TensorflowFramework):
         num_train_batch = reader.num_examples[0] // self.cfg.batch_size
         return img_batch, label_batch, num_train_batch
 
+    @timeit
     def _train_an_epoch(self, epoch, num_train_batch):
         loss = 0.
         for i in range(num_train_batch):
@@ -237,6 +241,7 @@ class TensorflowStdFramework(TensorflowFramework):
         except tf.errors.OutOfRangeError:
             print('Done training after {} epochs.'.format(self.cfg.epochs))
         finally:
+            self.writer.flush()
             coord.request_stop()
         coord.join(threads)
 
