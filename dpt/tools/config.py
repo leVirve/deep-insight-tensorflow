@@ -18,7 +18,7 @@ def build_tf_config():
     config.gpu_options.allow_growth = True
     return config
 
-with open('cfg.yaml', 'r') as f:
+with open('config.yml', 'r') as f:
     cfg = yaml.load(f)
 
 gpu_device_id = cfg['gpu_device_id']
