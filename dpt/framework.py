@@ -1,9 +1,7 @@
 import os
 
-''' for KerasFramework '''
 from keras.callbacks import TensorBoard
 
-''' for TensorflowFramework / TensorflowStdFramework'''
 import tensorflow as tf
 from tensorflow.python.framework.graph_util import convert_variables_to_constants
 
@@ -32,6 +30,10 @@ class BasicFramework:
         if not callable(runner):
             raise Exception(self.command_exception_fmt.format(self.name, mode))
         runner()
+        self.finish()
+
+    def finish():
+        pass
 
 
 class KerasFramework(BasicFramework):
@@ -106,7 +108,7 @@ class TensorflowFramework(BasicFramework):
         self.session.run(tf.global_variables_initializer())
         return self
 
-    def _build_graph(self,x, y):
+    def _build_graph(self, x, y):
         with tf.device(self.cfg.gpu_device):
             return TensorCNN(x, y, is_train=self.is_train).build_graph()
 
@@ -151,13 +153,14 @@ class TensorflowFramework(BasicFramework):
             if epoch % 2 == 0:
                 self._save_session()
             print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
-        self.writer.flush()
 
     def evaluate(self):
         self._restore_session()
         acc = self.session.run(
                 self.net.accuracy,
-                (self.dataset.test.images, self.dataset.test.labels))
+                feed_dict={
+                    self.x: self.dataset.test.images,
+                    self.y: self.dataset.test.labels})
         print('Testing Accuracy: {:.2f}%'.format(acc * 100))
 
     def export(self):
@@ -175,10 +178,11 @@ class TensorflowFramework(BasicFramework):
             name='pred')
         print(self.session.run(output))
 
-    def shutdown(self):
+    def finish(self):
         session = getattr(self, 'session')
         if session:
             session.close()
+            self.writer.close()
 
 
 class TensorflowStdFramework(TensorflowFramework):
@@ -241,7 +245,6 @@ class TensorflowStdFramework(TensorflowFramework):
         except tf.errors.OutOfRangeError:
             print('Done training after {} epochs.'.format(self.cfg.epochs))
         finally:
-            self.writer.flush()
             coord.request_stop()
         coord.join(threads)
 

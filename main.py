@@ -18,8 +18,6 @@ def main(framework, mode):
     fw = FRAMEWORKS[framework](cfg)
     fw.execute(mode)
 
-    if framework in ['tf', 'tfr']:
-        fw.shutdown()  # (Sgmt fault) Bug in tensorflow 1.0.0rc0 ?
 
 
 if __name__ == '__main__':
