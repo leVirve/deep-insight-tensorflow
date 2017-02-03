@@ -18,7 +18,5 @@ def main(framework, mode):
     fw = FRAMEWORKS[framework](cfg)
     fw.execute(mode)
 
-
-
 if __name__ == '__main__':
     main()

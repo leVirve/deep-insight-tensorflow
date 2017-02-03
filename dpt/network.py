@@ -63,14 +63,19 @@ class TensorCNN:
         return builder()
 
     def build_model(self):
+        tf.summary.image('input', self.images)
         conv1 = layers.conv2d(self.images, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
+        tf.summary.histogram('conv1-result', conv1)
         pool1 = layers.max_pooling2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
         conv2 = layers.conv2d(pool1, 64, [5, 5], padding='same', activation=tf.nn.relu, name='conv2')
+        tf.summary.histogram('conv2-result', conv2)
         pool2 = layers.max_pooling2d(conv2, pool_size=[2, 2], strides=2, name='pool2')
         flat1 = tf.reshape(pool2, [-1, 7 * 7 * 64], name='flatten')
         dense = layers.dense(flat1, units=1024, activation=tf.nn.relu, name='fc1')
+        tf.summary.histogram('fc1-result', dense)
         dropout = layers.dropout(dense, rate=0.4, training=self.is_train, name='dropout')
         logits = layers.dense(dropout, units=10, name='fc2')
+        tf.summary.histogram('fc2-result', logits)
         return logits
 
     def build_loss(self):

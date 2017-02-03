@@ -81,6 +81,7 @@ class Recorder:
             min_after_dequeue=cfg.min_after_dequeue,
             num_threads=cfg.num_threads)
         img_batch = tf.image.resize_bilinear(img_batch, [28, 28])
+        tf.summary.image('training_images', img_batch)
         return img_batch, label_batch
 
     def test_tfrecord(self, filename, cfg):
