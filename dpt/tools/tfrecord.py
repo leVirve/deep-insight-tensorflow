@@ -49,7 +49,7 @@ class Recorder():
             serialized_example,
             features={
                 'label': tf.FixedLenFeature([], tf.int64),
-                'img_raw' : tf.FixedLenFeature([], tf.string),
+                'img_raw': tf.FixedLenFeature([], tf.string),
             })
 
         img = tf.decode_raw(features['img_raw'], tf.float32)
