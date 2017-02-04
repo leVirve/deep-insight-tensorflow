@@ -1,4 +1,5 @@
 # deep-insight-tensorflow
+[![Code Climate](https://codeclimate.com/github/leVirve/deep-insight-tensorflow/badges/gpa.svg)](https://codeclimate.com/github/leVirve/deep-insight-tensorflow)
 
 ## Requirements:
 - Python >= 3.5

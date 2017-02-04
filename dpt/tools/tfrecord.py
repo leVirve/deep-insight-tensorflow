@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 
-class Recorder:
+class Recorder():
 
     metafile = 'tfrecord.meta'
 

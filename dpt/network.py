@@ -1,6 +1,6 @@
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten, Convolution2D, MaxPooling2D
 import tensorflow as tf
+from keras.layers import Convolution2D, Dense, Dropout, Flatten, MaxPooling2D
+from keras.models import Sequential
 from tensorflow.python.layers import layers
 
 

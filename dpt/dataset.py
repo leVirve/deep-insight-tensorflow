@@ -1,7 +1,7 @@
 from tensorflow.examples.tutorials.mnist import input_data
 
 
-class MNist:
+class MNist():
 
     path = 'data/mnist-data'
     image_shape = (28, 28, 1)
@@ -22,3 +22,11 @@ class MNist:
     @property
     def train(self):
         return self.raw.train
+
+    @property
+    def train_set(self):
+        return (self.raw.train.images, self.raw.train.labels)
+
+    @property
+    def test_set(self):
+        return (self.raw.test.images, self.raw.test.labels)

@@ -1,8 +1,7 @@
 import os
 
-from keras.callbacks import TensorBoard
-
 import tensorflow as tf
+from keras.callbacks import TensorBoard
 from tensorflow.python.framework.graph_util import convert_variables_to_constants
 
 from dpt.dataset import MNist
@@ -10,13 +9,12 @@ from dpt.network import KerasCNN, TensorCNN
 from dpt.tools import tfrecord, timeit
 
 
-class BasicFramework:
+class BasicFramework():
 
     command_exception_fmt = '{} has no such command: {}'
     need_setup = ['train', 'evaluate']
 
     def __init__(self, cfg):
-        self.dataset = None
         self.net = None
         self.cfg = cfg
 
@@ -32,7 +30,7 @@ class BasicFramework:
         runner()
         self.finish()
 
-    def finish():
+    def finish(self):
         pass
 
 
@@ -46,8 +44,6 @@ class KerasFramework(BasicFramework):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
         self.dataset = dataset
         self.net = KerasCNN(image_shape=dataset.image_shape)
-        self.train_set = (dataset.raw.train.images, dataset.raw.train.labels)
-        self.test_set = (dataset.raw.test.images, dataset.raw.test.labels)
         return self
 
     def train(self):
@@ -60,8 +56,8 @@ class KerasFramework(BasicFramework):
         ]
         net = self.net
         net.compile()
-        net.model.fit(*self.train_set,
-                      validation_data=self.test_set,
+        net.model.fit(*self.dataset.train_set,
+                      validation_data=self.dataset.test_set,
                       nb_epoch=self.cfg.epochs,
                       batch_size=self.cfg.batch_size,
                       callbacks=callbacks)
@@ -71,7 +67,7 @@ class KerasFramework(BasicFramework):
         self._load_weights()
         self.net.compile()
         _, accuracy = self.net.model.evaluate(
-            *self.test_set, batch_size=self.cfg.batch_size)
+            *self.dataset.test_set, batch_size=self.cfg.batch_size)
         print('== %s ==\nTest accuracy: %.2f%%' % (self.net.NAME, accuracy * 100))
 
     def predict(self):
