@@ -64,12 +64,11 @@ class TensorCNN:
     NAME = 'TensorCNN'
     ordered_op_names = ['loss', 'optimize', 'accuracy']
 
-    def __init__(self, images, labels, step=0, is_train=True, is_sparse=False):
+    def __init__(self, images, labels, step=0, is_train=True):
         self.images = images
         self.labels = labels
         self.step = step
         self.is_train = is_train
-        self.is_sparse = is_sparse
 
     def build_graph(self):
         self.prediction = self.build('model', wrapped=False)
@@ -122,12 +121,8 @@ class TensorCNN:
 
     @tf_summary(name='loss')
     def build_loss(self):
-        cross_entropy = (
-            tf.losses.sparse_softmax_cross_entropy
-            if self.is_sparse else
-            tf.losses.softmax_cross_entropy)
-        labels = {'labels' if self.is_sparse else 'onehot_labels': self.labels}
-        xentropy = cross_entropy(**labels, logits=self.prediction, scope='xentropy')
+        param = {'labels': self.labels, 'logits': self.prediction}
+        xentropy = tf.losses.sparse_softmax_cross_entropy(**param, scope='xentropy')
         return tf.reduce_mean(xentropy, name='mean_loss')
 
     def build_optimize(self):
@@ -136,7 +131,6 @@ class TensorCNN:
 
     @tf_summary(name='accuracy')
     def build_accuracy(self):
-        pred_class = tf.argmax(self.prediction, 1, name='pred_class')
-        pred_class = tf.cast(pred_class, tf.int32) if self.is_sparse else pred_class
-        labels = self.labels if self.is_sparse else tf.argmax(self.labels, 1)
-        return tf.reduce_mean(tf.cast(tf.equal(pred_class, labels), tf.float32))
+        pred_class = tf.cast(tf.argmax(self.prediction, 1, name='pred_class'), tf.int32)
+        correct_pred = tf.equal(pred_class, self.labels)
+        return tf.reduce_mean(tf.cast(correct_pred, tf.float32))

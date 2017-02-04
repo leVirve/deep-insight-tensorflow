@@ -41,7 +41,7 @@ class KerasFramework(BasicFramework):
     weights_path = 'data/weights/{}_weights.h5'
 
     def setup(self, mode):
-        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
+        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False, one_hot=True)
         self.dataset = dataset
         self.net = KerasCNN(image_shape=dataset.image_shape)
         return self
@@ -112,7 +112,7 @@ class TensorflowFramework(BasicFramework):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
         with tf.name_scope('inputs'):
             x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
-            y = tf.placeholder(tf.float32, [None, dataset.classes], name='label')
+            y = tf.placeholder(tf.int32, [None], name='label')
         self.dataset = dataset
         self._predict_input = dataset.test.images[:10]
         self.x = x
@@ -153,10 +153,10 @@ class TensorflowFramework(BasicFramework):
     def evaluate(self):
         self._restore_session()
         acc = self.session.run(
-                self.net.accuracy,
-                feed_dict={
-                    self.x: self.dataset.test.images,
-                    self.y: self.dataset.test.labels})
+            self.net.accuracy,
+            feed_dict={
+                self.x: self.dataset.test.images,
+                self.y: self.dataset.test.labels})
         print('Testing Accuracy: {:.2f}%'.format(acc * 100))
 
     def export(self):
@@ -175,9 +175,8 @@ class TensorflowFramework(BasicFramework):
         print(self.session.run(output))
 
     def finish(self):
-        session = getattr(self, 'session')
-        if session:
-            session.close()
+        if hasattr(self, 'session'):
+            self.session.close()
             self.writer.close()
 
 
@@ -198,11 +197,6 @@ class TensorflowStdFramework(TensorflowFramework):
         self.session.run(tf.group(tf.global_variables_initializer(),
                                   tf.local_variables_initializer()))
         return self
-
-    @timeit
-    def _build_graph(self, x, y):
-        with tf.device(self.cfg.gpu_device):
-            return TensorCNN(x, y, is_sparse=True, is_train=self.is_train).build_graph()
 
     @timeit
     def _build_inputs(self):
@@ -257,9 +251,10 @@ class TensorflowStdFramework(TensorflowFramework):
         coord.join(threads)
 
     def gen_tfrecord(self):
+        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
         recorder = tfrecord.Recorder(working_dir='data/mnist/')
-        recorder.generate(*self.dataset.train_set, filename='mnist-train.tfrecord')
-        recorder.generate(*self.dataset.test_set, filename='mnist-test.tfrecord')
+        recorder.generate(*dataset.train_set, filename='mnist-train.tfrecord')
+        recorder.generate(*dataset.test_set, filename='mnist-test.tfrecord')
 
     def _setup_insert(self, mode):
         self._build_inputs = super()._build_inputs

@@ -8,7 +8,7 @@ class MNist():
     classes = 10
 
     def __init__(self, batch_size, *args, **kwargs):
-        self.raw = input_data.read_data_sets(self.path, one_hot=True, *args, **kwargs)
+        self.raw = input_data.read_data_sets(self.path, *args, **kwargs)
         self.batch_size = batch_size
         self.num_train_batch = self.raw.train.num_examples // batch_size
 
