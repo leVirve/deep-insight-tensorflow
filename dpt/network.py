@@ -1,7 +1,26 @@
+from functools import wraps
+
 import tensorflow as tf
 from keras.layers import Convolution2D, Dense, Dropout, Flatten, MaxPooling2D
 from keras.models import Sequential
 from tensorflow.python.layers import layers
+
+
+def tf_summary(summary_type='scalar', name=None):
+    summary_calls = {
+        'histogram': tf.summary.histogram,
+        'scalar': tf.summary.scalar,
+    }
+    caller = summary_calls[summary_type]
+
+    def wrapper(f):
+        @wraps(f)
+        def decorator(*args, **kwargs):
+            result = f(*args, **kwargs)
+            caller('%s_h' % kwargs.get('name', name), result)
+            return result
+        return decorator
+    return wrapper
 
 
 class KerasCNN:
@@ -14,11 +33,10 @@ class KerasCNN:
 
     def build_model(self):
         layers = [
-            Convolution2D(32, *(5, 5), border_mode='same', activation='relu',
-                          input_shape=self.input_shape),
-            MaxPooling2D(pool_size=(2, 2)),
-            Convolution2D(64, *(5, 5), border_mode='same', activation='relu'),
-            MaxPooling2D(pool_size=(2, 2)),
+            self.conv2d(32, *(5, 5), input_shape=self.input_shape),
+            self.pool2d(),
+            self.conv2d(64, *(5, 5)),
+            self.pool2d(),
             Flatten(),
             Dense(1024, activation='relu'),
             Dropout(0.4),
@@ -26,6 +44,12 @@ class KerasCNN:
         ]
         model = Sequential(layers=layers, name=self.NAME)
         return model
+
+    def conv2d(self, *args, **kwargs):
+        return Convolution2D(*args, border_mode='same', activation='relu', **kwargs)
+
+    def pool2d(self, *args):
+        return MaxPooling2D(pool_size=(2, 2))
 
     def compile(self):
         self.model.compile(
@@ -38,6 +62,7 @@ class KerasCNN:
 class TensorCNN:
 
     NAME = 'TensorCNN'
+    ordered_op_names = ['loss', 'optimize', 'accuracy']
 
     def __init__(self, images, labels, step=0, is_train=True, is_sparse=False):
         self.images = images
@@ -47,11 +72,10 @@ class TensorCNN:
         self.is_sparse = is_sparse
 
     def build_graph(self):
-        self.step = tf.Variable(self.step, name='global_step', trainable=False)
         self.prediction = self.build('model', wrapped=False)
-        ordered_op_names = ['loss', 'optimize', 'accuracy']
-        for op_name in ordered_op_names:
+        for op_name in self.ordered_op_names:
             setattr(self, op_name, self.build(op_name))
+
         self.summary = tf.summary.merge_all()
         self.train_op = [self.optimize, self.loss, self.summary]
         return self
@@ -64,52 +88,55 @@ class TensorCNN:
         return builder()
 
     def build_model(self):
-        tf.summary.image('input', self.images)
-        conv1 = self.conv2d(self.images, 32, [5, 5], name='conv1')
-        pool1 = self.pool2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
-        conv2 = self.conv2d(pool1, 64, [5, 5], name='conv2')
-        pool2 = self.pool2d(conv2, pool_size=[2, 2], strides=2, name='pool2')
-        flat1 = tf.reshape(pool2, [-1, 7 * 7 * 64], name='flatten')
-        dense = self.dense(flat1, units=1024, activation=tf.nn.relu, name='fc1')
-        dropout = layers.dropout(dense, rate=0.4, training=self.is_train, name='dropout')
-        logits = self.dense(dropout, units=10, name='fc2')
-        return logits
+        x = self.images
+        tf.summary.image('input', x)
+        x = self.conv2d(x, 32, [5, 5], name='conv1')
+        x = self.pool2d(x, name='pool1')
+        x = self.conv2d(x, 64, [5, 5], name='conv2')
+        x = self.pool2d(x, name='pool2')
+        x = self.flatten(x, [-1, 7 * 7 * 64], name='flatten')
+        x = self.dense(x, 1024, activation=tf.nn.relu, name='fc1')
+        x = self.dropout(x, 0.4, training=self.is_train, name='dropout')
+        x = self.dense(x, 10, name='fc2')
+        return x
 
+    @tf_summary('histogram')
     def conv2d(self, *args, name=None):
-        conv = layers.conv2d(*args, padding='same', activation=tf.nn.relu, name=name)
-        tf.summary.histogram('%s-result' % name, conv)
-        return conv
+        return layers.conv2d(*args, padding='same', activation=tf.nn.relu, name=name)
 
-    def pool2d(self, *args, **kwars):
-        pool = layers.max_pooling2d(*args, **kwars)
-        return pool
+    @tf_summary('histogram')
+    def pool2d(self, *args, name=None):
+        return layers.max_pooling2d(*args, pool_size=[2, 2], strides=2, name=name)
 
-    def dense(self, *args, **kwargs):
-        dense = layers.dense(*args, **kwargs)
-        tf.summary.histogram('%s-result' % kwargs.get('name'), dense)
-        return dense
+    @tf_summary('histogram')
+    def dropout(self, *args, training=None, name=None):
+        return layers.dropout(*args, training=training, name=name)
 
+    @tf_summary('histogram')
+    def flatten(self, *args, name=None):
+        return tf.reshape(*args, name=name)
+
+    @tf_summary('histogram')
+    def dense(self, *args, activation=None, name=None):
+        return layers.dense(*args, activation=activation, name=name)
+
+    @tf_summary(name='loss')
     def build_loss(self):
         cross_entropy = (
             tf.losses.sparse_softmax_cross_entropy
             if self.is_sparse else
             tf.losses.softmax_cross_entropy)
-        kwarg = {'labels' if self.is_sparse else 'onehot_labels': self.labels}
-        xentropy = cross_entropy(logits=self.prediction, **kwarg, scope='xentropy')
-        loss = tf.reduce_mean(xentropy, name='mean_loss')
-        tf.summary.scalar('loss', loss)
-        return loss
+        labels = {'labels' if self.is_sparse else 'onehot_labels': self.labels}
+        xentropy = cross_entropy(**labels, logits=self.prediction, scope='xentropy')
+        return tf.reduce_mean(xentropy, name='mean_loss')
 
     def build_optimize(self):
-        opt = tf.train.AdamOptimizer(learning_rate=0.001)
-        return opt.minimize(self.loss, global_step=self.step)
+        step = tf.Variable(self.step, name='global_step', trainable=False)
+        return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=step)
 
+    @tf_summary(name='accuracy')
     def build_accuracy(self):
         pred_class = tf.argmax(self.prediction, 1, name='pred_class')
-        if self.is_sparse:
-            correct_pred = tf.equal(tf.cast(pred_class, tf.int32), self.labels)
-        else:
-            correct_pred = tf.equal(pred_class, tf.argmax(self.labels, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
-        tf.summary.scalar('accuracy', accuracy)
-        return accuracy
+        pred_class = tf.cast(pred_class, tf.int32) if self.is_sparse else pred_class
+        labels = self.labels if self.is_sparse else tf.argmax(self.labels, 1)
+        return tf.reduce_mean(tf.cast(tf.equal(pred_class, labels), tf.float32))
