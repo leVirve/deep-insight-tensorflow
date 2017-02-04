@@ -14,7 +14,8 @@ class KerasCNN:
 
     def build_model(self):
         layers = [
-            Convolution2D(32, *(5, 5), border_mode='same', activation='relu', input_shape=self.input_shape),
+            Convolution2D(32, *(5, 5), border_mode='same', activation='relu',
+                          input_shape=self.input_shape),
             MaxPooling2D(pool_size=(2, 2)),
             Convolution2D(64, *(5, 5), border_mode='same', activation='relu'),
             MaxPooling2D(pool_size=(2, 2)),
@@ -64,19 +65,29 @@ class TensorCNN:
 
     def build_model(self):
         tf.summary.image('input', self.images)
-        conv1 = layers.conv2d(self.images, 32, [5, 5], padding='same', activation=tf.nn.relu, name='conv1')
-        tf.summary.histogram('conv1-result', conv1)
-        pool1 = layers.max_pooling2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
-        conv2 = layers.conv2d(pool1, 64, [5, 5], padding='same', activation=tf.nn.relu, name='conv2')
-        tf.summary.histogram('conv2-result', conv2)
-        pool2 = layers.max_pooling2d(conv2, pool_size=[2, 2], strides=2, name='pool2')
+        conv1 = self.conv2d(self.images, 32, [5, 5], name='conv1')
+        pool1 = self.pool2d(conv1, pool_size=[2, 2], strides=2, name='pool1')
+        conv2 = self.conv2d(pool1, 64, [5, 5], name='conv2')
+        pool2 = self.pool2d(conv2, pool_size=[2, 2], strides=2, name='pool2')
         flat1 = tf.reshape(pool2, [-1, 7 * 7 * 64], name='flatten')
-        dense = layers.dense(flat1, units=1024, activation=tf.nn.relu, name='fc1')
-        tf.summary.histogram('fc1-result', dense)
+        dense = self.dense(flat1, units=1024, activation=tf.nn.relu, name='fc1')
         dropout = layers.dropout(dense, rate=0.4, training=self.is_train, name='dropout')
-        logits = layers.dense(dropout, units=10, name='fc2')
-        tf.summary.histogram('fc2-result', logits)
+        logits = self.dense(dropout, units=10, name='fc2')
         return logits
+
+    def conv2d(self, *args, name=None):
+        conv = layers.conv2d(*args, padding='same', activation=tf.nn.relu, name=name)
+        tf.summary.histogram('%s-result' % name, conv)
+        return conv
+
+    def pool2d(self, *args, **kwars):
+        pool = layers.max_pooling2d(*args, **kwars)
+        return pool
+
+    def dense(self, *args, **kwargs):
+        dense = layers.dense(*args, **kwargs)
+        tf.summary.histogram('%s-result' % kwargs.get('name'), dense)
+        return dense
 
     def build_loss(self):
         cross_entropy = (
@@ -90,7 +101,8 @@ class TensorCNN:
         return loss
 
     def build_optimize(self):
-        return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=self.step)
+        opt = tf.train.AdamOptimizer(learning_rate=0.001)
+        return opt.minimize(self.loss, global_step=self.step)
 
     def build_accuracy(self):
         pred_class = tf.argmax(self.prediction, 1, name='pred_class')

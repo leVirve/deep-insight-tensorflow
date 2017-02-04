@@ -20,7 +20,7 @@ class Recorder():
             return img.tobytes()
 
         def to_label(label):
-            return int(np.where(label==1)[0])
+            return int(np.where(label == 1)[0])
 
         os.makedirs(self.working_dir, exist_ok=True)
 
@@ -73,8 +73,9 @@ class Recorder():
         return img, label
 
     def train_tfrecord(self, filename, cfg):
-        img, label = self.read_and_decode(filename, epochs=cfg.epochs, preprocess=cfg.preprocess_level)
-        img_batch, label_batch =  tf.train.shuffle_batch(
+        params = {'epochs': cfg.epochs, 'preprocess': cfg.preprocess_level}
+        img, label = self.read_and_decode(filename, **params)
+        img_batch, label_batch = tf.train.shuffle_batch(
             [img, label],
             batch_size=cfg.batch_size,
             capacity=cfg.capacity,

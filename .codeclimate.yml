@@ -7,6 +7,12 @@ engines:
       languages:
       - python:
           python_version: 3
+  markdownlint:
+    enabled: true
+  radon:
+    enabled: true
+    config:
+      python_version: 3
 
 ratings:
   paths:

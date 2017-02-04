@@ -195,7 +195,8 @@ class TensorflowStdFramework(TensorflowFramework):
         self.saver = tf.train.Saver()
         self.session = tf.Session(config=self.cfg.config)
         self.writer = tf.summary.FileWriter(self.cfg.train_dir, self.session.graph)
-        self.session.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
+        self.session.run(tf.group(tf.global_variables_initializer(),
+                                  tf.local_variables_initializer()))
         return self
 
     @timeit
@@ -256,19 +257,19 @@ class TensorflowStdFramework(TensorflowFramework):
         coord.join(threads)
 
     def gen_tfrecord(self):
-        dataset = self.dataset
         recorder = tfrecord.Recorder(working_dir='data/mnist/')
-        recorder.generate(dataset.train.images, dataset.train.labels, filename='mnist-train.tfrecord')
-        recorder.generate(dataset.test.images, dataset.test.labels, filename='mnist-test.tfrecord')
+        recorder.generate(*self.dataset.train_set, filename='mnist-train.tfrecord')
+        recorder.generate(*self.dataset.test_set, filename='mnist-test.tfrecord')
 
-    def export(self):
+    def _setup_insert(self, mode):
         self._build_inputs = super()._build_inputs
         self._build_graph = super()._build_graph
-        self.setup('export')
+        self.setup(mode)
+
+    def export(self):
+        self._setup_insert('export')
         return super().export()
 
     def predict(self):
-        self._build_inputs = super()._build_inputs
-        self._build_graph = super()._build_graph
-        self.setup('predict')
+        self._setup_insert('predict')
         return super().predict()
