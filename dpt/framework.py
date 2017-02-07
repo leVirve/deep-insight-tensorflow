@@ -5,7 +5,7 @@ import tensorflow as tf
 from keras.callbacks import TensorBoard
 from tensorflow.python.framework.graph_util import convert_variables_to_constants
 
-from dpt.dataset import MNist
+from dpt.dataset import MNist, MNistRecorder
 from dpt.network import KerasCNN, TensorCNN
 from dpt.tools import tfrecord, timeit
 
@@ -196,7 +196,7 @@ class TensorflowStdFramework(TensorflowFramework):
 
     @timeit
     def _build_inputs(self):
-        batch_reader = tfrecord.Recorder(self.records, working_dir='data/mnist/')
+        batch_reader = MNistRecorder(self.records)
         x, y, batch_per_step = batch_reader.fetch(self.cfg, self.is_train)
         self.batch_per_step = batch_per_step
         return x, y
@@ -236,7 +236,7 @@ class TensorflowStdFramework(TensorflowFramework):
 
     def gen_tfrecord(self):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
-        recorder = tfrecord.Recorder(working_dir='data/mnist/')
+        recorder = MNistRecorder()
         recorder.generate(*dataset.train_set, filename=self.records['train'])
         recorder.generate(*dataset.test_set, filename=self.records['test'])
 
