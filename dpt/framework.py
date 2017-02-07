@@ -197,8 +197,8 @@ class TensorflowStdFramework(TensorflowFramework):
     @timeit
     def _build_inputs(self):
         batch_reader = MNistRecorder(self.records)
-        x, y, batch_per_step = batch_reader.fetch(self.cfg, self.is_train)
-        self.batch_per_step = batch_per_step
+        x, y = batch_reader.fetch(self.cfg, self.is_train)
+        self.batch_per_step = batch_reader.num_batch
         return x, y
 
     def runner(self, f):
