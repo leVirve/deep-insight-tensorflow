@@ -140,15 +140,15 @@ class TensorflowFramework(BasicFramework):
             x, y = self.dataset.next_batch()
             _, c, summary = self.session.run(self.net.train_op, feed_dict={self.x: x, self.y: y})
             loss += c / num_batches
+        if epoch % 2 == 0:
+            self._save_session()
         self.writer.add_summary(summary, epoch)
-        return loss, epoch
+        print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
+        return loss
 
     def train(self):
         for epoch in range(1, self.cfg.epochs + 1):
-            loss, _ = self._train_an_epoch(epoch, self.dataset.num_train_batch)
-            if epoch % 2 == 0:
-                self._save_session()
-            print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
+            self._train_an_epoch(epoch, self.dataset.num_train_batch)
 
     def evaluate(self):
         self._restore_session()
@@ -186,6 +186,7 @@ class TensorflowStdFramework(TensorflowFramework):
     need_setup = ['train', 'evaluate']
     exported_graphdef = 'tfr_graphdef.pb'
 
+    #TODO: merge with TF
     @timeit
     def setup(self, mode):
         self.is_train = mode == 'train'
@@ -214,41 +215,50 @@ class TensorflowStdFramework(TensorflowFramework):
         num_train_batch = reader.num_examples[0] // self.cfg.batch_size
         return img_batch, label_batch, num_train_batch
 
+    #TODO: merge with TF
     @timeit
     def _train_an_epoch(self, epoch, num_train_batch):
         loss = 0.
         for i in range(num_train_batch):
             _, c, summary = self.session.run(self.net.train_op)
             loss += c / num_train_batch
+        if epoch % 2 == 0:
+            self._save_session()
         self.writer.add_summary(summary, epoch)
-        return loss, epoch + 1
+        print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
+        return loss
 
-    def train(self):
+    def runner(self, f):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=self.session, coord=coord)
         try:
-            epoch = 0
-            while not coord.should_stop():
-                loss, epoch = self._train_an_epoch(epoch, self.num_train_batch)
-                if epoch % 2 == 0:
-                    self._save_session()
-                print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
+            f(coord)
         except tf.errors.OutOfRangeError:
             print('Done training after {} epochs.'.format(self.cfg.epochs))
         finally:
             coord.request_stop()
         coord.join(threads)
 
+    def train(self):
+        def worker(coord):
+            epoch = 0
+            while not coord.should_stop():
+                self._train_an_epoch(epoch, self.num_train_batch)
+                epoch += 1
+        self.runner(worker)
+
     def evaluate(self):
+        def worker(coord):
+            num_iter = 10000 // self.cfg.batch_size + 1
+            step = 0
+            avg_acc = 0
+            while step < num_iter and not coord.should_stop():
+                acc = self.session.run(self.net.accuracy)
+                avg_acc += acc
+                step += 1
+            print('Testing Accuracy: {:.2f}%'.format(avg_acc / num_iter * 100))
         self._restore_session()
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=self.session, coord=coord)
-
-        acc = self.session.run(self.net.accuracy)
-        print('Testing Accuracy: {:.2f}%'.format(acc * 100))
-
-        coord.request_stop()
-        coord.join(threads)
+        self.runner(worker)
 
     def gen_tfrecord(self):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
