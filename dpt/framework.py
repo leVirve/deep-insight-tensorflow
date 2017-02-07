@@ -1,4 +1,5 @@
 import os
+from functools import partialmethod
 
 import tensorflow as tf
 from keras.callbacks import TensorBoard
@@ -96,15 +97,16 @@ class TensorflowFramework(BasicFramework):
 
     def setup(self, mode):
         self.is_train = mode == 'train'
-        x, y = self._build_inputs()
-        self.net = self._build_graph(x, y)
+        self.net = self._build_graph()
         self.saver = tf.train.Saver()
         self.session = tf.Session(config=self.cfg.config)
         self.writer = tf.summary.FileWriter(self.cfg.train_dir, self.session.graph)
-        self.session.run(tf.global_variables_initializer())
+        self.session.run(tf.group(tf.global_variables_initializer(),
+                                  tf.local_variables_initializer()))
         return self
 
-    def _build_graph(self, x, y):
+    def _build_graph(self):
+        x, y = self._build_inputs()
         with tf.device(self.cfg.gpu_device):
             return TensorCNN(x, y, is_train=self.is_train).build_graph()
 
@@ -114,6 +116,7 @@ class TensorflowFramework(BasicFramework):
             x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
             y = tf.placeholder(tf.int32, [None], name='label')
         self.dataset = dataset
+        self.batch_per_step = self.dataset.num_train_batch
         self._predict_input = dataset.test.images[:10]
         self.x = x
         self.y = y
@@ -149,7 +152,7 @@ class TensorflowFramework(BasicFramework):
     def train(self):
         for epoch in range(1, self.cfg.epochs + 1):
             x, y = self.dataset.next_batch()
-            loss, summary = self._train_an_epoch(self.dataset.num_train_batch, feed_dict={self.x: x, self.y: y})
+            loss, summary = self._train_an_epoch(self.batch_per_step, feed_dict={self.x: x, self.y: y})
             self._train_summary(epoch, summary)
             print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
 
@@ -187,25 +190,13 @@ class TensorflowStdFramework(TensorflowFramework):
 
     name = 'TensorflowStdFramework'
     need_setup = ['train', 'evaluate']
-    exported_graphdef = 'tfr_graphdef.pb'
 
-    #TODO: merge with TF
-    @timeit
-    def setup(self, mode):
-        self.is_train = mode == 'train'
-        x, y = self._build_inputs()
-        self.net = self._build_graph(x, y)
-        self.saver = tf.train.Saver()
-        self.session = tf.Session(config=self.cfg.config)
-        self.writer = tf.summary.FileWriter(self.cfg.train_dir, self.session.graph)
-        self.session.run(tf.group(tf.global_variables_initializer(),
-                                  tf.local_variables_initializer()))
-        return self
+    records = {'train': 'mnist-train.tfrecord', 'test': 'mnist-test.tfrecord'}
+    exported_graphdef = 'tfr_graphdef.pb'
 
     @timeit
     def _build_inputs(self):
-        records = {'train': 'mnist-train.tfrecord', 'test': 'mnist-test.tfrecord'}
-        batch_reader = tfrecord.Recorder(records, working_dir='data/mnist/')
+        batch_reader = tfrecord.Recorder(self.records, working_dir='data/mnist/')
         x, y, batch_per_step = batch_reader.fetch(self.cfg, self.is_train)
         self.batch_per_step = batch_per_step
         return x, y
@@ -246,18 +237,15 @@ class TensorflowStdFramework(TensorflowFramework):
     def gen_tfrecord(self):
         dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
         recorder = tfrecord.Recorder(working_dir='data/mnist/')
-        recorder.generate(*dataset.train_set, filename='mnist-train.tfrecord')
-        recorder.generate(*dataset.test_set, filename='mnist-test.tfrecord')
+        recorder.generate(*dataset.train_set, filename=self.records['train'])
+        recorder.generate(*dataset.test_set, filename=self.records['test'])
 
-    def _setup_insert(self, mode):
+    def _fake_interface(self, mode):
         self._build_inputs = super()._build_inputs
         self._build_graph = super()._build_graph
         self.setup(mode)
+        runner = getattr(super(), mode)
+        return runner()
 
-    def export(self):
-        self._setup_insert('export')
-        return super().export()
-
-    def predict(self):
-        self._setup_insert('predict')
-        return super().predict()
+    predict = partialmethod(_fake_interface, 'predict')
+    export = partialmethod(_fake_interface, 'export')
