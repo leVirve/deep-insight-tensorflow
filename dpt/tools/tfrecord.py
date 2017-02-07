@@ -9,10 +9,10 @@ class Recorder():
 
     metafile = 'tfrecord.meta'
 
-    def __init__(self, working_dir='.'):
+    def __init__(self, records={}, working_dir='.'):
         self.working_dir = working_dir
+        self.records = records
         self.meta = {}
-        self.num_examples = []
 
     def generate(self, images, labels, filename):
 
@@ -68,30 +68,33 @@ class Recorder():
 
         with open(self.get_fullpath(self.metafile), 'rb') as f:
             meta = pickle.load(f)
-            self.num_examples.append(meta[filename]['num_examples'])
 
-        return img, label
+        return [img, label], meta[filename]['num_examples']
 
-    def train_tfrecord(self, filename, cfg):
+    def fetch(self, cfg, train):
+        return self.fetch_train(cfg) if train else self.fetch_test(cfg)
+
+    def fetch_train(self, cfg):
         params = {'epochs': cfg.epochs, 'preprocess': cfg.preprocess_level}
-        img, label = self.read_and_decode(filename, **params)
+        batched, num_examples = self.read_and_decode(self.records.get('train'), **params)
         img_batch, label_batch = tf.train.shuffle_batch(
-            [img, label],
+            batched,
             batch_size=cfg.batch_size,
             capacity=cfg.capacity,
             min_after_dequeue=cfg.min_after_dequeue,
             num_threads=cfg.num_threads)
         img_batch = tf.image.resize_bilinear(img_batch, [28, 28])
         tf.summary.image('training_images', img_batch)
-        return img_batch, label_batch
+        return img_batch, label_batch, num_examples // cfg.batch_size
 
-    def test_tfrecord(self, filename, cfg):
-        img, label = self.read_and_decode(filename, preprocess=0)
-        return tf.train.batch(
-            [img, label],
+    def fetch_test(self, cfg):
+        batched, num_examples = self.read_and_decode(self.records.get('test'), preprocess=0)
+        img_batch, label_batch = tf.train.batch(
+            batched,
             batch_size=cfg.batch_size,
             capacity=cfg.capacity,
             num_threads=cfg.num_threads)
+        return img_batch, label_batch, num_examples // cfg.batch_size
 
     def get_fullpath(self, filename):
         return os.path.join(self.working_dir, filename)

@@ -204,20 +204,11 @@ class TensorflowStdFramework(TensorflowFramework):
 
     @timeit
     def _build_inputs(self):
-        img_batch, label_batch, num_train_batch = self._reader_batch()
-        self.num_train_batch = num_train_batch
-        return img_batch, label_batch
-
-    # TODO: handle with better tfrecord utils
-    @timeit
-    def _reader_batch(self):
-        train = self.is_train
-        reader = tfrecord.Recorder(working_dir='data/mnist/')
-        batch_generator = getattr(reader, 'train_tfrecord' if train else 'test_tfrecord')
-        tfrecord_file = 'mnist-train.tfrecord' if train else 'mnist-test.tfrecord'
-        img_batch, label_batch = batch_generator(tfrecord_file, self.cfg)
-        num_train_batch = reader.num_examples[0] // self.cfg.batch_size
-        return img_batch, label_batch, num_train_batch
+        records = {'train': 'mnist-train.tfrecord', 'test': 'mnist-test.tfrecord'}
+        batch_reader = tfrecord.Recorder(records, working_dir='data/mnist/')
+        x, y, batch_per_step = batch_reader.fetch(self.cfg, self.is_train)
+        self.batch_per_step = batch_per_step
+        return x, y
 
     def runner(self, f):
         coord = tf.train.Coordinator()
@@ -234,7 +225,7 @@ class TensorflowStdFramework(TensorflowFramework):
         def worker(coord):
             epoch = 0
             while not coord.should_stop():
-                loss, summary = self._train_an_epoch(self.num_train_batch)
+                loss, summary = self._train_an_epoch(self.batch_per_step)
                 epoch += 1
                 self._train_summary(epoch, summary)
                 print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
@@ -242,13 +233,13 @@ class TensorflowStdFramework(TensorflowFramework):
 
     def evaluate(self):
         def worker(coord):
+            num_iter = self.batch_per_step
             step, avg_acc = 0, 0.
             while step < num_iter and not coord.should_stop():
                 acc = self.session.run(self.net.accuracy)
                 avg_acc += acc / num_iter
                 step += 1
             print('Testing Accuracy: {:.2f}%'.format(avg_acc * 100))
-        num_iter = 10000 // self.cfg.batch_size + 1  # TODO: handle it in tfrecord metadata
         self._restore_session()
         self.runner(worker)
 
