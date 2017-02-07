@@ -134,21 +134,24 @@ class TensorflowFramework(BasicFramework):
             return graph_def
 
     @timeit
-    def _train_an_epoch(self, epoch, num_batches):
+    def _train_an_epoch(self, num_iter, **kwargs):
         loss = 0.
-        for i in range(num_batches):
-            x, y = self.dataset.next_batch()
-            _, c, summary = self.session.run(self.net.train_op, feed_dict={self.x: x, self.y: y})
-            loss += c / num_batches
+        for _ in range(num_iter):
+            _, c, summary = self.session.run(self.net.train_op, **kwargs)
+            loss += c / num_iter
+        return loss, summary
+
+    def _train_summary(self, epoch, summary):
         if epoch % 2 == 0:
             self._save_session()
         self.writer.add_summary(summary, epoch)
-        print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
-        return loss
 
     def train(self):
         for epoch in range(1, self.cfg.epochs + 1):
-            self._train_an_epoch(epoch, self.dataset.num_train_batch)
+            x, y = self.dataset.next_batch()
+            loss, summary = self._train_an_epoch(self.dataset.num_train_batch, feed_dict={self.x: x, self.y: y})
+            self._train_summary(epoch, summary)
+            print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
 
     def evaluate(self):
         self._restore_session()
@@ -205,6 +208,7 @@ class TensorflowStdFramework(TensorflowFramework):
         self.num_train_batch = num_train_batch
         return img_batch, label_batch
 
+    # TODO: handle with better tfrecord utils
     @timeit
     def _reader_batch(self):
         train = self.is_train
@@ -214,19 +218,6 @@ class TensorflowStdFramework(TensorflowFramework):
         img_batch, label_batch = batch_generator(tfrecord_file, self.cfg)
         num_train_batch = reader.num_examples[0] // self.cfg.batch_size
         return img_batch, label_batch, num_train_batch
-
-    #TODO: merge with TF
-    @timeit
-    def _train_an_epoch(self, epoch, num_train_batch):
-        loss = 0.
-        for i in range(num_train_batch):
-            _, c, summary = self.session.run(self.net.train_op)
-            loss += c / num_train_batch
-        if epoch % 2 == 0:
-            self._save_session()
-        self.writer.add_summary(summary, epoch)
-        print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
-        return loss
 
     def runner(self, f):
         coord = tf.train.Coordinator()
@@ -243,20 +234,21 @@ class TensorflowStdFramework(TensorflowFramework):
         def worker(coord):
             epoch = 0
             while not coord.should_stop():
-                self._train_an_epoch(epoch, self.num_train_batch)
+                loss, summary = self._train_an_epoch(self.num_train_batch)
                 epoch += 1
+                self._train_summary(epoch, summary)
+                print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
         self.runner(worker)
 
     def evaluate(self):
         def worker(coord):
-            num_iter = 10000 // self.cfg.batch_size + 1
-            step = 0
-            avg_acc = 0
+            step, avg_acc = 0, 0.
             while step < num_iter and not coord.should_stop():
                 acc = self.session.run(self.net.accuracy)
-                avg_acc += acc
+                avg_acc += acc / num_iter
                 step += 1
-            print('Testing Accuracy: {:.2f}%'.format(avg_acc / num_iter * 100))
+            print('Testing Accuracy: {:.2f}%'.format(avg_acc * 100))
+        num_iter = 10000 // self.cfg.batch_size + 1  # TODO: handle it in tfrecord metadata
         self._restore_session()
         self.runner(worker)
 
