@@ -7,7 +7,7 @@ from tensorflow.python.framework.graph_util import convert_variables_to_constant
 
 from dpt.dataset import MNist, MNistRecorder
 from dpt.network import KerasCNN, TensorCNN
-from dpt.tools import tfrecord, timeit
+from dpt.tools import timeit
 
 
 class BasicFramework():
@@ -199,6 +199,7 @@ class TensorflowStdFramework(TensorflowFramework):
         batch_reader = MNistRecorder(self.records)
         x, y = batch_reader.fetch(self.cfg, self.is_train)
         self.batch_per_step = batch_reader.num_batch
+        tf.summary.image('training_images', x)
         return x, y
 
     def runner(self, f):

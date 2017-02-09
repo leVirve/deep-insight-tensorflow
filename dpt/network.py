@@ -1,26 +1,9 @@
-from functools import wraps
-
 import tensorflow as tf
 from keras.layers import Convolution2D, Dense, Dropout, Flatten, MaxPooling2D
 from keras.models import Sequential
 from tensorflow.python.layers import layers
 
-
-def tf_summary(summary_type='scalar', name=None):
-    summary_calls = {
-        'histogram': tf.summary.histogram,
-        'scalar': tf.summary.scalar,
-    }
-    caller = summary_calls[summary_type]
-
-    def wrapper(f):
-        @wraps(f)
-        def decorator(*args, **kwargs):
-            result = f(*args, **kwargs)
-            caller('%s_h' % kwargs.get('name', name), result)
-            return result
-        return decorator
-    return wrapper
+from dpt.tools import tf_summary
 
 
 class KerasCNN:
