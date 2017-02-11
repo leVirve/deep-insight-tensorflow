@@ -21,12 +21,13 @@ def build_tf_config():
 
 
 def build_tfrecord_config(train_cfg):
+    tfr_cfg = train_cfg.tfrecord
     param_test = {
         'batch_size': train_cfg.batch_size,
-        'num_threads': train_cfg.tfrecord.num_threads,
-        'capacity': train_cfg.tfrecord.capacity if train_cfg.tfrecord.capacity else train_cfg.tfrecord.min_after_dequeue * 3 + train_cfg.batch_size,
+        'num_threads': tfr_cfg.num_threads,
+        'capacity': tfr_cfg.capacity if tfr_cfg.capacity else tfr_cfg.min_after_dequeue * 3 + train_cfg.batch_size,
     }
-    param_train = {'min_after_dequeue': train_cfg.tfrecord.min_after_dequeue, **param_test}
+    param_train = {'min_after_dequeue': tfr_cfg.min_after_dequeue, **param_test}
     return EasyDict(train=param_train, test=param_test)
 
 with open('config.yml', 'r') as f:

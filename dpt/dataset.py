@@ -62,8 +62,7 @@ class MNistRecorder():
         num_batch = getattr(self._dataset.raw, phase).num_examples // phase_cfg.batch_size
         batched = self.read_batched(phase_cfg.tfrecord.filepath, process_level, epoch_limit)
         if train:
-            img_batch, label_batch = tf.train.shuffle_batch(
-                batched, **self.config.batcher_params.train)
+            img_batch, label_batch = tf.train.shuffle_batch(batched, **self.config.batcher_params.train)
             img_batch = tf.image.resize_bilinear(img_batch, self.image_shape[:2])
         else:
             print(self.config.batcher_params.test)
