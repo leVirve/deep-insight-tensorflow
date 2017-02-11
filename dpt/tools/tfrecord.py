@@ -51,4 +51,4 @@ def read_and_decode(filepath, epochs=None, preprocess=1, **kwargs):
         img = tf.image.resize_image_with_crop_or_pad(img, *cropped_shape[:2])
         img = tf.image.per_image_standardization(img)
 
-    return img, label
+    return [img, label]

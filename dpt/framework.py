@@ -39,10 +39,9 @@ class KerasFramework(BasicFramework):
 
     name = 'KerasFramework'
     need_setup = ['train', 'evaluate', 'predict']
-    weights_path = 'data/weights/{}_weights.h5'
 
     def setup(self, mode):
-        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False, one_hot=True)
+        dataset = MNist(batch_size=self.cfg.train.batch_size, reshape=False, one_hot=True)
         self.dataset = dataset
         self.net = KerasCNN(image_shape=dataset.image_shape)
         return self
@@ -50,25 +49,24 @@ class KerasFramework(BasicFramework):
     def train(self):
         callbacks = [
             TensorBoard(
-                histogram_freq=2,
+                histogram_freq=1,
                 write_graph=True,
                 write_images=False,
-                log_dir=self.cfg.train_dir)
+                log_dir=self.cfg.train.log_dir)
         ]
-        net = self.net
-        net.compile()
-        net.model.fit(*self.dataset.train_set,
-                      validation_data=self.dataset.test_set,
-                      nb_epoch=self.cfg.epochs,
-                      batch_size=self.cfg.batch_size,
-                      callbacks=callbacks)
+        self.net.compile()
+        self.net.model.fit(*self.dataset.train_set,
+                           validation_data=self.dataset.test_set,
+                           nb_epoch=self.cfg.train.epochs,
+                           batch_size=self.cfg.train.batch_size,
+                           callbacks=callbacks)
         self._save_weights()
 
     def evaluate(self):
         self._load_weights()
         self.net.compile()
         _, accuracy = self.net.model.evaluate(
-            *self.dataset.test_set, batch_size=self.cfg.batch_size)
+            *self.dataset.test_set, batch_size=self.cfg.test.batch_size)
         print('== %s ==\nTest accuracy: %.2f%%' % (self.net.NAME, accuracy * 100))
 
     def predict(self):
@@ -76,7 +74,7 @@ class KerasFramework(BasicFramework):
         print(self.net.model.predict(self.dataset.raw.test.images))
 
     def _get_weight_name(self):
-        return self.weights_path.format(self.net.NAME)
+        return '%s%s/h5' % (self.cfg.model.keras_weights_dir, self.net.NAME)
 
     def _load_weights(self):
         return self.net.model.load_weights(self._get_weight_name())
@@ -99,8 +97,8 @@ class TensorflowFramework(BasicFramework):
         self.is_train = mode == 'train'
         self.net = self._build_graph()
         self.saver = tf.train.Saver()
-        self.session = tf.Session(config=self.cfg.config)
-        self.writer = tf.summary.FileWriter(self.cfg.train_dir, self.session.graph)
+        self.session = tf.Session(config=self.cfg.tf_config)
+        self.writer = tf.summary.FileWriter(self.cfg.train.log_dir, self.session.graph)
         self.session.run(tf.group(tf.global_variables_initializer(),
                                   tf.local_variables_initializer()))
         return self
@@ -111,7 +109,8 @@ class TensorflowFramework(BasicFramework):
             return TensorCNN(x, y, is_train=self.is_train).build_graph()
 
     def _build_inputs(self):
-        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
+        bsz = self.cfg.train.batch_size if self.is_train else self.cfg.test.batch_size
+        dataset = MNist(batch_size=bsz, reshape=False)
         with tf.name_scope('inputs'):
             x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
             y = tf.placeholder(tf.int32, [None], name='label')
@@ -123,15 +122,14 @@ class TensorflowFramework(BasicFramework):
         return x, y
 
     def _save_session(self):
-        self.saver.save(
-            self.session, self.cfg.model_path, global_step=self.net.step)
+        self.saver.save(self.session, self.cfg.model.model_path, global_step=self.net.step)
 
     def _restore_session(self):
-        latest_ckpt = tf.train.latest_checkpoint(self.cfg.model_dir)
+        latest_ckpt = tf.train.latest_checkpoint(self.cfg.model.model_dir)
         self.saver.restore(self.session, latest_ckpt)
 
     def _restore_graph_def(self):
-        with open(self.cfg.model_dir + self.exported_graphdef, 'rb') as f:
+        with open(self.cfg.model.model_dir + self.exported_graphdef, 'rb') as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
             return graph_def
@@ -150,7 +148,7 @@ class TensorflowFramework(BasicFramework):
         self.writer.add_summary(summary, epoch)
 
     def train(self):
-        for epoch in range(1, self.cfg.epochs + 1):
+        for epoch in range(1, self.cfg.train.epochs + 1):
             x, y = self.dataset.next_batch()
             loss, summary = self._train_an_epoch(self.batch_per_step, feed_dict={self.x: x, self.y: y})
             self._train_summary(epoch, summary)
@@ -169,7 +167,7 @@ class TensorflowFramework(BasicFramework):
         self._restore_session()
         graph = convert_variables_to_constants(
             self.session, self.session.graph_def, ['accuracy/pred_class'])
-        tf.train.write_graph(graph, self.cfg.model_dir, self.exported_graphdef, as_text=False)
+        tf.train.write_graph(graph, self.cfg.model.model_dir, self.exported_graphdef, as_text=False)
 
     def predict(self):
         graph_def = self._restore_graph_def()
@@ -190,15 +188,13 @@ class TensorflowStdFramework(TensorflowFramework):
 
     name = 'TensorflowStdFramework'
     need_setup = ['train', 'evaluate']
-
-    records = {'train': 'mnist-train.tfrecord', 'test': 'mnist-test.tfrecord'}
     exported_graphdef = 'tfr_graphdef.pb'
 
     @timeit
     def _build_inputs(self):
-        batch_reader = MNistRecorder(self.records)
-        x, y = batch_reader.fetch(self.cfg, self.is_train)
-        self.batch_per_step = batch_reader.num_batch
+        batch_reader = MNistRecorder(self.cfg)
+        x, y, num_batch = batch_reader.fetch(self.is_train)
+        self.batch_per_step = num_batch
         tf.summary.image('training_images', x)
         return x, y
 
@@ -208,7 +204,7 @@ class TensorflowStdFramework(TensorflowFramework):
         try:
             f(coord)
         except tf.errors.OutOfRangeError:
-            print('Done training after {} epochs.'.format(self.cfg.epochs))
+            print('Done training after {} epochs.'.format(self.cfg.train.epochs))
         finally:
             coord.request_stop()
         coord.join(threads)
@@ -236,10 +232,7 @@ class TensorflowStdFramework(TensorflowFramework):
         self.runner(worker)
 
     def gen_tfrecord(self):
-        dataset = MNist(batch_size=self.cfg.batch_size, reshape=False)
-        recorder = MNistRecorder()
-        recorder.generate(*dataset.train_set, filename=self.records['train'])
-        recorder.generate(*dataset.test_set, filename=self.records['test'])
+        MNistRecorder(self.cfg).generate()
 
     def _fake_interface(self, mode):
         self._build_inputs = super()._build_inputs

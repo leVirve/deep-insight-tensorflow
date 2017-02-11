@@ -1,5 +1,6 @@
 import os
 import yaml
+from easydict import EasyDict
 
 
 def create_parent_dir(fullpath):
@@ -18,28 +19,30 @@ def build_tf_config():
     config.gpu_options.allow_growth = True
     return config
 
+
+def build_tfrecord_config(train_cfg):
+    param_test = {
+        'batch_size': train_cfg.batch_size,
+        'num_threads': train_cfg.tfrecord.num_threads,
+        'capacity': train_cfg.tfrecord.capacity if train_cfg.tfrecord.capacity else train_cfg.tfrecord.min_after_dequeue * 3 + train_cfg.batch_size,
+    }
+    param_train = {'min_after_dequeue': train_cfg.tfrecord.min_after_dequeue, **param_test}
+    return EasyDict(train=param_train, test=param_test)
+
 with open('config.yml', 'r') as f:
-    cfg = yaml.load(f)
+    cfg = EasyDict(yaml.load(f))
 
-gpu_device_id = cfg['gpu_device_id']
-gpu_device = '/gpu:{}'.format(gpu_device_id)
 
-train = cfg['train']
-epochs = train['epochs']
-batch_size = train['batch_size']
-train_dir = train['train_dir']
+# export first level dict
+train = cfg.train
+test = cfg.test
+model = cfg.model
 
-tfrecord = train['tfrecord']
-min_after_dequeue = tfrecord['min_after_dequeue']
-num_threads = tfrecord['num_threads']
-preprocess_level = tfrecord['preprocess_level']
-capacity = min_after_dequeue + 3 * batch_size
+# initialization functions
+create_parent_dir(model.model_path)
+setup_gpu_env(cfg.gpu_device_id)
 
-model = cfg['model']
-model_path = model['model_path']
-model_dir = model['model_dir']
-
-create_parent_dir(model_path)
-setup_gpu_env(gpu_device_id)
-
-config = build_tf_config()
+# exported config set
+tf_config = build_tf_config()
+batcher_params = build_tfrecord_config(train)
+gpu_device = '/gpu:{}'.format(cfg.gpu_device_id)

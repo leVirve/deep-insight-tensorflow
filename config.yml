@@ -1,15 +1,26 @@
 gpu_device_id: 1
 
 train:
-    epochs: 20
+    epochs: 1
     batch_size: 1024
-    train_dir: ./logs/train/
+    log_dir: logs/train/
     tfrecord:
         min_after_dequeue: 100
         capacity: ~
         num_threads: 32
         preprocess_level: 1
+        filepath: data/mnist/mnist-train.tfrecord
+
+test:
+    batch_size: 1024
+    log_dir: logs/test/
+    tfrecord:
+        capacity: ~
+        num_threads: 32
+        preprocess_level: 0
+        filepath: data/mnist/mnist-test.tfrecord
 
 model:
-    model_dir: ./data/models/
-    model_path: ./data/models/mnist
+    model_dir: data/models/
+    model_path: data/models/mnist
+    keras_weights_dir: data/keras/weights/
