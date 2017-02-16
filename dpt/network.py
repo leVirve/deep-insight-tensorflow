@@ -59,7 +59,7 @@ class TensorCNN:
             setattr(self, op_name, self.build(op_name))
 
         self.summary = tf.summary.merge_all()
-        self.train_op = [self.optimize, self.loss, self.summary]
+        self.train_op = [self.optimize, self.loss]
         return self
 
     def build(self, name, wrapped=True):

@@ -138,9 +138,9 @@ class TensorflowFramework(BasicFramework):
     def _train_an_epoch(self, num_iter, **kwargs):
         loss = 0.
         for _ in range(num_iter):
-            _, c, summary = self.session.run(self.net.train_op, **kwargs)
+            _, c = self.session.run(self.net.train_op, **kwargs)
             loss += c / num_iter
-        return loss, summary
+        return loss
 
     def _train_summary(self, epoch, summary):
         if epoch % 2 == 0:
@@ -150,7 +150,9 @@ class TensorflowFramework(BasicFramework):
     def train(self):
         for epoch in range(1, self.cfg.train.epochs + 1):
             x, y = self.dataset.next_batch()
-            loss, summary = self._train_an_epoch(self.batch_per_step, feed_dict={self.x: x, self.y: y})
+            feed_dict = {self.x: x, self.y: y}
+            loss = self._train_an_epoch(self.batch_per_step, feed_dict=feed_dict)
+            summary = self.session.run(self.net.summary, feed_dict=feed_dict)
             self._train_summary(epoch, summary)
             print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
 
@@ -213,7 +215,8 @@ class TensorflowStdFramework(TensorflowFramework):
         def worker(coord):
             epoch = 0
             while not coord.should_stop():
-                loss, summary = self._train_an_epoch(self.batch_per_step)
+                loss = self._train_an_epoch(self.batch_per_step)
+                summary = self.session.run(self.net.summary)
                 epoch += 1
                 self._train_summary(epoch, summary)
                 print('Epoch {:02d}: loss = {:.9f}'.format(epoch, loss))
