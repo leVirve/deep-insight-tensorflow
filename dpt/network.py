@@ -54,20 +54,14 @@ class TensorCNN:
         self.is_train = is_train
 
     def build_graph(self):
-        self.prediction = self.build('model', wrapped=False)
+        self.prediction = self.build_model()
         for op_name in self.ordered_op_names:
-            setattr(self, op_name, self.build(op_name))
-
+            with tf.name_scope(op_name):
+                builder = getattr(self, 'build_{op}'.format(op=op_name))
+                setattr(self, op_name, builder())
         self.summary = tf.summary.merge_all()
         self.train_op = [self.optimize, self.loss]
         return self
-
-    def build(self, name, wrapped=True):
-        builder = getattr(self, 'build_{}'.format(name))
-        if wrapped:
-            with tf.name_scope(name):
-                return builder()
-        return builder()
 
     def build_model(self):
         x = self.images
