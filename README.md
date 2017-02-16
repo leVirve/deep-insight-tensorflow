@@ -5,7 +5,7 @@
 ## Requirements
 
 - Python >= 3.5
-- `tensorflow` >= `1.0.0rc2`
+- `tensorflow` >= `1.0.0`
 - `keras`
 
 Can install dependencies through freezed requirements file:
