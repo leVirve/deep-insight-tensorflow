@@ -1,6 +1,7 @@
+from functools import partial
+
+import keras
 import tensorflow as tf
-from keras.layers import Convolution2D, Dense, Dropout, Flatten, MaxPooling2D
-from keras.models import Sequential
 from tensorflow.python.layers import layers
 
 from dpt.tools import tf_summary
@@ -16,30 +17,30 @@ class KerasCNN:
 
     def build_model(self):
         layers = [
-            self.conv2d(32, *(5, 5), input_shape=self.input_shape),
-            self.pool2d(),
-            self.conv2d(64, *(5, 5)),
-            self.pool2d(),
-            Flatten(),
-            Dense(1024, activation='relu'),
-            Dropout(0.4),
-            Dense(10, activation='softmax'),
+            self.conv2d(32, [5, 5], input_shape=self.input_shape, name='conv1'),
+            self.pool2d(name='pool1'),
+            self.conv2d(64, [5, 5], name='conv2'),
+            self.pool2d(name='pool2'),
+            self.flatten(name='flatten'),
+            self.dense(1024, activation='relu', name='fc1'),
+            self.dropout(0.4, name='dropout'),
+            self.dense(10, activation='softmax', name='fc2'),
         ]
-        model = Sequential(layers=layers, name=self.NAME)
+        model = keras.models.Sequential(layers=layers, name=self.NAME)
         return model
-
-    def conv2d(self, *args, **kwargs):
-        return Convolution2D(*args, border_mode='same', activation='relu', **kwargs)
-
-    def pool2d(self, *args):
-        return MaxPooling2D(pool_size=(2, 2))
 
     def compile(self):
         self.model.compile(
-            optimizer='adam',
+            optimizer=tf.train.AdamOptimizer(learning_rate=0.001),
             loss='categorical_crossentropy',
             metrics=['accuracy'])
         return self
+
+    conv2d = partial(keras.layers.Conv2D, padding='same', activation='relu')
+    pool2d = partial(keras.layers.MaxPooling2D, pool_size=(2, 2))
+    dropout = keras.layers.Dropout
+    flatten = keras.layers.Flatten
+    dense = keras.layers.Dense
 
 
 class TensorCNN:

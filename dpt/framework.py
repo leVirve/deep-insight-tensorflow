@@ -57,7 +57,7 @@ class KerasFramework(BasicFramework):
         self.net.compile()
         self.net.model.fit(*self.dataset.train_set,
                            validation_data=self.dataset.test_set,
-                           nb_epoch=self.cfg.train.epochs,
+                           epochs=self.cfg.train.epochs,
                            batch_size=self.cfg.train.batch_size,
                            callbacks=callbacks)
         self._save_weights()
