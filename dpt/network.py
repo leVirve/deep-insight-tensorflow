@@ -70,7 +70,7 @@ class TensorCNN:
         x = self.pool2d(x, name='pool1')
         x = self.conv2d(x, 64, [5, 5], name='conv2')
         x = self.pool2d(x, name='pool2')
-        x = self.flatten(x, [-1, np.prod([d.value for d in x.shape if d.value])], name='flatten')
+        x = self.flatten(x, [-1, np.prod([d.value for d in x.shape[1:] if d.value])], name='flatten')
         x = self.dense(x, 1024, activation=tf.nn.relu, name='fc1')
         x = self.dropout(x, 0.4, training=self.is_train, name='dropout')
         x = self.dense(x, 10, name='fc2')
