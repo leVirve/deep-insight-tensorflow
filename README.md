@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- Python >= 3.5
+- Python >= `3.5`
 - `tensorflow` >= `1.0.0`
 - `keras` >= `2.0.0-tf`
 
