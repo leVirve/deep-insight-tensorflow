@@ -17,23 +17,21 @@ class KerasCNN:
         self.model = self.build_model()
 
     def build_model(self):
-        layers = [
-            self.conv2d(32, [5, 5], input_shape=self.input_shape, name='conv1'),
-            self.pool2d(name='pool1'),
-            self.conv2d(64, [5, 5], name='conv2'),
-            self.pool2d(name='pool2'),
-            self.flatten(name='flatten'),
-            self.dense(1024, activation='relu', name='fc1'),
-            self.dropout(0.4, name='dropout'),
-            self.dense(10, activation='softmax', name='fc2'),
-        ]
-        model = keras.models.Sequential(layers=layers, name=self.NAME)
-        return model
+        inputs = keras.layers.Input(shape=self.input_shape)
+        x = self.conv2d(32, [5, 5], name='conv1')(inputs)
+        x = self.pool2d(name='pool1')(x)
+        x = self.conv2d(64, [5, 5], name='conv2')(x)
+        x = self.pool2d(name='pool2')(x)
+        x = self.flatten(name='flatten')(x)
+        x = self.dense(1024, activation='relu', name='fc1')(x)
+        x = self.dropout(0.4, name='dropout')(x)
+        x = self.dense(10, activation='softmax', name='fc2')(x)
+        return keras.models.Model(inputs, x, name=self.NAME)
 
     def compile(self):
         self.model.compile(
             optimizer=tf.train.AdamOptimizer(learning_rate=0.001),
-            loss='categorical_crossentropy',
+            loss='sparse_categorical_crossentropy',
             metrics=['accuracy'])
         return self
 
