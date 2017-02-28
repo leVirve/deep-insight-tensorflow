@@ -10,8 +10,8 @@ class MNist():
     image_shape = (28, 28, 1)
     classes = 10
 
-    def __init__(self, batch_size=0, *args, **kwargs):
-        self.raw = input_data.read_data_sets(self.path, *args, **kwargs)
+    def __init__(self, batch_size=0, reshape=False, *args, **kwargs):
+        self.raw = input_data.read_data_sets(self.path, *args, reshape=reshape, **kwargs)
         self.batch_size = batch_size
         self.num_train_batch = self.raw.train.num_examples // batch_size if batch_size else None
 
@@ -42,7 +42,7 @@ class MNistRecorder():
 
     def __init__(self, config):
         self.config = config
-        self._dataset = MNist(reshape=False)
+        self._dataset = MNist()
 
     def generate(self):
         generate(*self._dataset.train_set, self.config.train.tfrecord.filepath)

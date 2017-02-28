@@ -17,10 +17,14 @@ class BasicFramework():
 
     def __init__(self, cfg):
         self.net = None
+        self.mode = None
         self.cfg = cfg
 
     def setup(self, mode):
         raise Exception('Not implemented')
+
+    def get_batch_size(self):
+        return self.cfg.train.batch_size if self.mode == 'train' else self.cfg.test.batch_size
 
     def execute(self, mode):
         if self.net is None and mode in self.need_setup:
@@ -28,6 +32,7 @@ class BasicFramework():
         runner = getattr(self, mode, None)
         if not callable(runner):
             raise Exception(self.command_exception_fmt.format(self.name, mode))
+        self.mode = mode
         runner()
         self.finish()
 
@@ -41,9 +46,8 @@ class KerasFramework(BasicFramework):
     need_setup = ['train', 'evaluate', 'predict']
 
     def setup(self, mode):
-        dataset = MNist(batch_size=self.cfg.train.batch_size, reshape=False, one_hot=True)
-        self.dataset = dataset
-        self.net = KerasCNN(image_shape=dataset.image_shape)
+        self.dataset = MNist(batch_size=self.get_batch_size())
+        self.net = KerasCNN(image_shape=self.dataset.image_shape)
         return self
 
     def train(self):
@@ -109,13 +113,12 @@ class TensorflowFramework(BasicFramework):
             return TensorCNN(x, y, is_train=self.is_train).build_graph()
 
     def _build_inputs(self):
-        bsz = self.cfg.train.batch_size if self.is_train else self.cfg.test.batch_size
-        dataset = MNist(batch_size=bsz, reshape=False)
+        dataset = MNist(batch_size=self.get_batch_size())
         with tf.name_scope('inputs'):
             x = tf.placeholder(tf.float32, [None, *dataset.image_shape], name='image')
             y = tf.placeholder(tf.int32, [None], name='label')
         self.dataset = dataset
-        self.batch_per_step = self.dataset.num_train_batch
+        self.batch_per_step = dataset.num_train_batch
         self._predict_input = dataset.test.images[:10]
         self.x = x
         self.y = y
