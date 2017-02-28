@@ -14,6 +14,18 @@ def timeit(f):
     return decorator
 
 
+def tf_scope(scope=None):
+
+    def wrapper(f):
+        @functools.wraps(f)
+        def decorator(*args, **kwargs):
+            with tf.name_scope(scope):
+                return f(*args, **kwargs)
+        return decorator
+
+    return wrapper
+
+
 def tf_summary(summary_type='scalar', name=None):
     summary_calls = {
         'histogram': tf.summary.histogram,
@@ -25,7 +37,8 @@ def tf_summary(summary_type='scalar', name=None):
         @functools.wraps(f)
         def decorator(*args, **kwargs):
             result = f(*args, **kwargs)
-            caller('%s_h' % kwargs.get('name', name), result)
+            caller(kwargs.get('name', name), result)
             return result
         return decorator
+
     return wrapper

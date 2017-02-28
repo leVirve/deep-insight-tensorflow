@@ -1,10 +1,11 @@
-from functools import partial
+from functools import partial, partialmethod
 
 import keras
 import tensorflow as tf
-from tensorflow.python.layers import layers
+import numpy as np
+from tensorflow import python as tfs
 
-from dpt.tools import tf_summary
+from dpt.tools import tf_summary, tf_scope
 
 
 class KerasCNN:
@@ -46,7 +47,6 @@ class KerasCNN:
 class TensorCNN:
 
     NAME = 'TensorCNN'
-    ordered_op_names = ['loss', 'optimize', 'accuracy']
 
     def __init__(self, images, labels, step=0, is_train=True):
         self.images = images
@@ -55,60 +55,49 @@ class TensorCNN:
         self.is_train = is_train
 
     def build_graph(self):
-        self.prediction = self.build_model()
-        for op_name in self.ordered_op_names:
-            with tf.name_scope(op_name):
-                builder = getattr(self, 'build_{op}'.format(op=op_name))
-                setattr(self, op_name, builder())
+        tf.summary.image('input', self.images)
+        self.prediction = self.build_model(self.images)
+        self.loss = self.build_loss()
+        self.optimize = self.build_optimize()
+        self.accuracy = self.build_accuracy()
         self.summary = tf.summary.merge_all()
         self.train_op = [self.optimize, self.loss]
         return self
 
-    def build_model(self):
-        x = self.images
-        tf.summary.image('input', x)
+    def build_model(self, x):
+        x = tf.transpose(x, perm=[0, 3, 1, 2])  # NHWC -> NCHW
         x = self.conv2d(x, 32, [5, 5], name='conv1')
         x = self.pool2d(x, name='pool1')
         x = self.conv2d(x, 64, [5, 5], name='conv2')
         x = self.pool2d(x, name='pool2')
-        x = self.flatten(x, [-1, 7 * 7 * 64], name='flatten')
+        x = self.flatten(x, [-1, np.prod([d.value for d in x.shape if d.value])], name='flatten')
         x = self.dense(x, 1024, activation=tf.nn.relu, name='fc1')
         x = self.dropout(x, 0.4, training=self.is_train, name='dropout')
         x = self.dense(x, 10, name='fc2')
         return x
 
     @tf_summary('histogram')
-    def conv2d(self, *args, name=None):
-        return layers.conv2d(*args, padding='same', activation=tf.nn.relu, name=name)
-
-    @tf_summary('histogram')
-    def pool2d(self, *args, name=None):
-        return layers.max_pooling2d(*args, pool_size=[2, 2], strides=2, name=name)
-
-    @tf_summary('histogram')
-    def dropout(self, *args, training=None, name=None):
-        return layers.dropout(*args, training=training, name=name)
-
-    @tf_summary('histogram')
-    def flatten(self, *args, name=None):
-        return tf.reshape(*args, name=name)
-
-    @tf_summary('histogram')
-    def dense(self, *args, activation=None, name=None):
-        return layers.dense(*args, activation=activation, name=name)
+    def layer(self, f, *args, **kwargs):
+        return f(*args, **kwargs)
 
     @tf_summary(name='loss')
     def build_loss(self):
         param = {'labels': self.labels, 'logits': self.prediction}
-        xentropy = tf.losses.sparse_softmax_cross_entropy(**param, scope='xentropy')
-        return tf.reduce_mean(xentropy, name='mean_loss')
+        return tf.losses.sparse_softmax_cross_entropy(**param, scope='loss')
+
+    @tf_summary(name='accuracy')
+    @tf_scope(scope='accuracy')
+    def build_accuracy(self):
+        pred_class = tf.argmax(self.prediction, 1, name='pred_class')
+        mean_t, update_op = tf.metrics.accuracy(pred_class, self.labels, name='metric_acc')
+        return update_op
 
     def build_optimize(self):
         step = tf.Variable(self.step, name='global_step', trainable=False)
         return tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.loss, global_step=step)
 
-    @tf_summary(name='accuracy')
-    def build_accuracy(self):
-        pred_class = tf.cast(tf.argmax(self.prediction, 1, name='pred_class'), tf.int32)
-        correct_pred = tf.equal(pred_class, self.labels)
-        return tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+    conv2d = partialmethod(layer, partial(tfs.layers.conv2d, padding='same', activation=tf.nn.relu, data_format='channels_first'))
+    pool2d = partialmethod(layer, partial(tfs.layers.max_pooling2d, pool_size=[2, 2], strides=2, data_format='channels_first'))
+    flatten = partialmethod(layer, tf.reshape)
+    dense = partialmethod(layer, tfs.layers.dense)
+    dropout = partialmethod(layer, tfs.layers.dropout)
